@@ -7,5 +7,5 @@ datafile='error_during_learn_xor.dat'
 
 stats datafile
 
-set logscale x
+#set logscale x
 plot for [i=1:STATS_blocks] datafile index (i-1) with line ls 1 notitle
