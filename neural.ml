@@ -8,14 +8,15 @@ end
 
 module Sigmoid : Activation = struct
 
-  let rfloat () = Random.float 1.
+  let rfloat () = (Random.float 2.) -. 1.
 
-  let beta = 5.
-  let f x = 1. /. (6. +. exp (-. x *. beta))
-  let f' x = beta *. f x *. (1. -. f x)
+  let f x = 1. /. (1. +. exp (-. x))
+  let f' x =
+    let fx = f x in
+    fx *. (1. -. fx)
   let rand_float_tab nn n =
     let s =  sqrt (1. /. float_of_int (nn + n)) in
-    Array.init n (fun _ -> rfloat () *. s)
+    Array.init n (fun _ -> 4. *. rfloat () *. s)
   let convert01 x = x
 end
 
@@ -149,7 +150,7 @@ let learn learning_rate lcompute f' weights examples =
       let values, datas = computes lcompute weights inputs in
       
       let gerror = substract values expectedv |> Array.map (fun x -> x *. x) |> Array.fold_left (+.) 0. in
-      (* Format.printf "values %a expected %a (error=%f)@\n" ptab values ptab expectedv gerror; *)
+      Format.printf "values %a expected %a (error=%f)@\n" ptab values ptab expectedv gerror;
       sum_error +. gerror, expected learning_rate f' expectedv values datas
     ) (0., weights) examples
 
@@ -168,7 +169,7 @@ let () =
   let open LayerTanh in
   
   Random.self_init ();
-  let learning_rate = 0.01 in
+  let learning_rate = 0.1 in
   let ninputs = 3 in
   let noutput = 3 in
   let examples =
@@ -184,7 +185,7 @@ let () =
            |> List.map snd) examples in *)
   let examples = List.map (fun (a, b) -> List.map convert01 a, List.map convert01 b) examples in
   let error_channel = open_out "error_during_learn_xor.dat" |> Format.formatter_of_out_channel in
-  for i = 1 to 100 do
+  for i = 1 to 3 do
     let w = init_weights ninputs [4; 4; noutput] in
     let examples = List.map (fun (a, b) -> Array.of_list a, Array.of_list b) examples in
     let w = learns error_channel 10000 learning_rate compute f' w examples in
