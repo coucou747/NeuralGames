@@ -6,12 +6,12 @@ module type Activation = sig
   val convert01 : float -> float
 end
 
-let rfloat () = (Random.float 2.) -. 1.
-
-
 module Sigmoid : Activation = struct
+
+  let rfloat () = Random.float 1.
+
   let beta = 5.
-  let f x = 1. /. (1. +. exp (-. x *. beta))
+  let f x = 1. /. (6. +. exp (-. x *. beta))
   let f' x = beta *. f x *. (1. -. f x)
   let rand_float_tab nn n =
     let s =  sqrt (1. /. float_of_int (nn + n)) in
@@ -20,6 +20,9 @@ module Sigmoid : Activation = struct
 end
 
 module Tanh : Activation = struct
+
+  let rfloat () = (Random.float 2.) -. 1.
+
   let f x = tanh x
   let f' x = 1. -. (tanh x) *. (tanh x)
   let rand_float_tab nn n = 
@@ -32,7 +35,7 @@ module Layer (F : Activation) = struct
   let make_layer inputs n =
     Array.init n (fun _ -> F.rand_float_tab n inputs)
   let rec init_weights ninputs = function
-    | hd::tl -> make_layer (ninputs + 1) hd :: init_weights hd tl
+    | hd::tl -> make_layer ninputs hd :: init_weights hd tl
     | [] -> []
   let compute inputs weights =
     let nneurons = Array.length weights in
@@ -55,31 +58,30 @@ let addbiais input =
 
 let computes (compute: float array -> float array array -> float array * float array) layers input =
   List.fold_left (fun (input, li) layerw ->
-      let input = addbiais input in
       let sums, output = compute input layerw in
       (output, (sums, output, input, layerw)::li)
     ) (input, []) layers
 
 
-let debug input datas =
-  Format.printf "@[<v 2>digraph {@\nsplines=line;@[<v 2>@\nsubgraph cluster_input {";
+let debug debug_channel input datas =
+  Format.fprintf debug_channel "@[<v 2>digraph {@\nsplines=line;@[<v 2>@\nsubgraph cluster_input {";
   Array.iteri (fun i v ->
-      Format.printf "@\ni_%d[label=\"i_%d %f\" color=\"lightblue2\" style=\"filled\" shape=\"diamond\" ]" i i v
+      Format.fprintf debug_channel "@\ni_%d[label=\"i_%d %f\" color=\"lightblue2\" style=\"filled\" shape=\"diamond\" ]" i i v
     ) input;
-  Format.printf "@]@\n}";
+  Format.fprintf debug_channel "@]@\n}";
   let player i f j = Format.fprintf f "l%d_%d" i j in
   List.iteri (fun layer (sums, values, _prev_values, _layerw) ->
-      Format.printf "@[<v 2>@\nsubgraph cluster_%d {" layer;
+      Format.fprintf debug_channel "@[<v 2>@\nsubgraph cluster_%d {" layer;
       Array.iteri (fun j value ->      
-          Format.printf "@\n%a[label=\"f(%f)=@\n%f\" color=\"darksalmon\" style=\"filled\"]" (player layer) j value values.(j)
+          Format.fprintf debug_channel "@\n%a[label=\"f(%f)=@\n%f\" color=\"darksalmon\" style=\"filled\"]" (player layer) j value values.(j)
         ) sums;
-      Format.printf "@]@\n}";
+      Format.fprintf debug_channel "@]@\n}";
     ) (List.rev datas);
   ignore (List.fold_left (fun (layer, namei) (sums, values, _prev_values, layerw) ->
       Array.iteri (fun j tabv ->
           for k = 0 to Array.length tabv - 1 do
             let pw f () = Format.fprintf f "w_%d_%d_%d" layer j k in
-            Format.printf "@\n%a[label=\"%f\" shape=\"box\" style=\"filled\" color=\"lightgrey\"]@\n%a -> %a@\n%a -> %a [color=\"grey\"]"
+            Format.fprintf debug_channel "@\n%a[label=\"%f\" shape=\"box\" style=\"filled\" color=\"lightgrey\"]@\n%a -> %a@\n%a -> %a [color=\"grey\"]"
               pw ()
               tabv.(k)
               namei k pw ()
@@ -90,7 +92,7 @@ let debug input datas =
     )
     (0, (fun f i -> Format.fprintf f "i_%d" i))
     (List.rev datas));
-  Format.printf "@]@\n}@\n"
+  Format.fprintf debug_channel "@]@\n}@\n"
 
 let mapmat2 f m1 m2 =
   assert( Array.length m1 = Array.length m2);
@@ -132,20 +134,22 @@ let expected learningRate f' expected values datas=
     let delta = dot (Array.map f' sums) error in
     let changes = Array.mapi (fun i d -> scalar prev_values (d *. learningRate) ) delta in
     let prev_error = multiply21 (transpose layerw) delta in
-    (*ignore biais*)
-    let prev_error = Array.sub prev_error 0 (Array.length prev_error - 1) in
       (add changes layerw):: weights, prev_error
   in
   let error = substract expected values in
   let nw, _ = List.fold_left fixlay ([], error) datas
   in nw
 
-let ptab f array = Format.pp_print_list (fun f v -> Format.fprintf f "%f" v) f (Array.to_list array)
+let ptab f array =
+  let pp_sep f () = Format.fprintf f " " in
+  Format.pp_print_list ~pp_sep (fun f v -> Format.fprintf f "%2.2f" v) f (Array.to_list array)
 
 let learn learning_rate lcompute f' weights examples =
   List.fold_left (fun (sum_error, weights) (inputs, expectedv) ->
       let values, datas = computes lcompute weights inputs in
+      
       let gerror = substract values expectedv |> Array.map (fun x -> x *. x) |> Array.fold_left (+.) 0. in
+      (* Format.printf "values %a expected %a (error=%f)@\n" ptab values ptab expectedv gerror; *)
       sum_error +. gerror, expected learning_rate f' expectedv values datas
     ) (0., weights) examples
 
@@ -164,24 +168,30 @@ let () =
   let open LayerTanh in
   
   Random.self_init ();
-  let learning_rate = 0.005 in
-  let ninputs = 2 in
+  let learning_rate = 0.01 in
+  let ninputs = 3 in
+  let noutput = 3 in
   let examples =
     [
-      [0.; 1.], [1.];
-      [1.; 1.], [0.];
-      [1.; 0.], [1.];
-      [0.; 0.], [0.];
+      [0.; 1.; 1.], [1.; 0.; 1.];
+      [1.; 1.; 1.], [0.; 1.; 1.];
+      [1.; 0.; 1.], [1.; 0.; 1.];
+      [0.; 0.; 1.], [0.; 0.; 0.];
     ] in
+  (*
+  let examples = List.map (fun (in_, out) ->
+      in_, List.filter (fun (i, _) -> i = 2) (List.mapi (fun i j -> i, j) out)
+           |> List.map snd) examples in *)
   let examples = List.map (fun (a, b) -> List.map convert01 a, List.map convert01 b) examples in
   let error_channel = open_out "error_during_learn_xor.dat" |> Format.formatter_of_out_channel in
-  for i = 1 to 30 do
-    let w = init_weights ninputs [6; 6; 1] in
+  for i = 1 to 100 do
+    let w = init_weights ninputs [4; 4; noutput] in
     let examples = List.map (fun (a, b) -> Array.of_list a, Array.of_list b) examples in
     let w = learns error_channel 10000 learning_rate compute f' w examples in
     Format.fprintf error_channel "@\n@\n";
     let inputs = rand_float_tab 0 ninputs in
     let tab, data = computes compute w inputs in
-    debug inputs data
+    let debug_channel = open_out ("xor_"^(string_of_int i)^".dot") |> Format.formatter_of_out_channel in
+    debug debug_channel inputs data
   done
     
