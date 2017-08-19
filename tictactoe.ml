@@ -85,7 +85,7 @@ module TicTacToe = GamePlay(TicState)(Neural.Tanh)
 (* let _winner = TicTacToe.play TicTacToe.random_player TicTacToe.stdin_player *)
 
 let () =
-  let ai = TicTacToe.create_ai [18; 3] in
+  let ai = TicTacToe.create_ai [30; 10] in
   for i = 1 to 1000 do
     for j = 1 to 1000 do
       TicTacToe.learn 0.1 ai;

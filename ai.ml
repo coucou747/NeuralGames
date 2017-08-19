@@ -117,7 +117,7 @@ end = struct
   let learn learning_rate refw =
     let rec f state player =
       let other_player = G.other_player player in
-      if (Random.int 12) = 0 then
+      if (Random.int 2) = 0 then
         let move = random_player state player in
         let ns, _ = G.play state player move in
         if G.won ns player then learning_rate
