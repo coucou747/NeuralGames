@@ -118,6 +118,7 @@ end = struct
     let rec f state player =
       let other_player = G.other_player player in
       if (Random.int 2) = 0 then
+        (* on force l'IA a explorer d'autres morceaux de l'arbre que les "meilleurs" coups *)
         let move = random_player state player in
         let ns, _ = G.play state player move in
         if G.won ns player then learning_rate
@@ -142,7 +143,7 @@ end = struct
             let learning_rate = f ns other_player in
             begin
               refw := Neural.expected learning_rate F.f' [| F.invert score |] values_t0 datas_t0;
-              learning_rate *. 0.2
+              learning_rate *. 0.2 (* plus on s'éloigne d'une fin de partie, moins on apprend *)
             end
         end
     in ignore (f (G.state0 ()) G.p1)
