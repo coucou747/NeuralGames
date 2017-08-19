@@ -76,10 +76,20 @@ module TicState : Game = struct
 
   let input f = Scanf.bscanf f "%i\n" (fun i -> i)
 
-  let floats_of_state s =
-    li_of_state s |> List.flatten |> List.map Remplissage.floats_of_cell |> List.flatten
+  let floats_of_state player s =
+    li_of_state s |> List.flatten |> List.map (Remplissage.floats_of_cell player) |> List.flatten
 end
 
-module TicTacToe = GamePlay(TicState)
+module TicTacToe = GamePlay(TicState)(Neural.Tanh)
 
-let _winner = TicTacToe.play TicTacToe.random_player TicTacToe.stdin_player
+(* let _winner = TicTacToe.play TicTacToe.random_player TicTacToe.stdin_player *)
+
+let () =
+  let ai = TicTacToe.create_ai [18; 3] in
+  for i = 1 to 1000 do
+    for j = 1 to 1000 do
+      TicTacToe.learn 0.1 ai;
+    done;
+    let s = TicTacToe.stats (TicTacToe.make_ai_player ai) TicTacToe.random_player in
+    Format.printf "%d : %a@\n%!" i TicTacToe.pp_stats s
+  done

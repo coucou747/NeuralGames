@@ -1,12 +1,12 @@
 
-%.native: %.ml
+%.native: *.ml
 	ocamlbuild $*.native
 
-error_during_learn_xor.dat: neural.native
-	./neural.native
+error_during_learn_xor.dat: test_bool_neural.native
+	./test_bool_neural.native
 
-%.dot: neural.native
-	./neural.native
+xor_%.dot: test_bool_neural.native
+	./test_bool_neural.native
 
 %.plot.png: %.dat %.plot
 	gnuplot $*.plot

@@ -1,13 +1,18 @@
 
 module type Activation = sig
+  type t = float -> float
   val f : float -> float
   val f' : float-> float
   val rand_float_tab : int -> int -> float array
   val convert01 : float -> float
+  val invert : float -> float
+  val max : float
+  val min : float
+  val neutral : float
 end
 
 module Sigmoid : Activation = struct
-
+  type t = float -> float
   let rfloat () = (Random.float 2.) -. 1.
 
   let f x = 1. /. (1. +. exp (-. x))
@@ -18,10 +23,14 @@ module Sigmoid : Activation = struct
     let s =  sqrt (1. /. float_of_int (nn + n)) in
     Array.init n (fun _ -> 4. *. rfloat () *. s)
   let convert01 x = x
+  let invert x = 1. -. x
+  let min = 0.
+  let max = 1.
+  let neutral = 0.5
 end
 
 module Tanh : Activation = struct
-
+  type t = float -> float
   let rfloat () = (Random.float 2.) -. 1.
 
   let f x = tanh x
@@ -30,6 +39,10 @@ module Tanh : Activation = struct
     let s =  sqrt (1. /. float_of_int (nn + n)) in
     Array.init n (fun _ -> 4. *. rfloat () *. s)
   let convert01 x = x *. 2. -. 1.
+  let invert x = -. x
+    let min = -.1.
+  let max = 1.
+  let neutral = 0.
 end
 
 module Layer (F : Activation) = struct
@@ -163,36 +176,3 @@ let rec learns error_channel n learning_rate lcompute f' weights examples =
 
 module LayerSigmoid = Layer(Sigmoid)
 module LayerTanh = Layer(Tanh)
-
-let () =
-  let open Tanh in
-  let open LayerTanh in
-  
-  Random.self_init ();
-  let learning_rate = 0.1 in
-  let ninputs = 3 in
-  let noutput = 3 in
-  let examples =
-    [
-      [0.; 1.; 1.], [1.; 0.; 1.];
-      [1.; 1.; 1.], [0.; 1.; 1.];
-      [1.; 0.; 1.], [1.; 0.; 1.];
-      [0.; 0.; 1.], [0.; 0.; 0.];
-    ] in
-  (*
-  let examples = List.map (fun (in_, out) ->
-      in_, List.filter (fun (i, _) -> i = 2) (List.mapi (fun i j -> i, j) out)
-           |> List.map snd) examples in *)
-  let examples = List.map (fun (a, b) -> List.map convert01 a, List.map convert01 b) examples in
-  let error_channel = open_out "error_during_learn_xor.dat" |> Format.formatter_of_out_channel in
-  for i = 1 to 3 do
-    let w = init_weights ninputs [4; 4; noutput] in
-    let examples = List.map (fun (a, b) -> Array.of_list a, Array.of_list b) examples in
-    let w = learns error_channel 10000 learning_rate compute f' w examples in
-    Format.fprintf error_channel "@\n@\n";
-    let inputs = rand_float_tab 0 ninputs in
-    let tab, data = computes compute w inputs in
-    let debug_channel = open_out ("xor_"^(string_of_int i)^".dot") |> Format.formatter_of_out_channel in
-    debug debug_channel inputs data
-  done
-    
