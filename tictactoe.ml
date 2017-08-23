@@ -106,11 +106,19 @@ module TicTacToe = GamePlay(TicState)(Neural.Tanh)
 (* let _winner = TicTacToe.play TicTacToe.random_player TicTacToe.stdin_player *)
 
 let () =
-  let ai = TicTacToe.create_ai [30; 10] in
-  for i = 1 to 1000 do
-    for j = 1 to 1000 do
+  let ai_file =  "tictactoe_ai.nn" in
+  let ai =
+    try
+      TicTacToe.load_ai (Scanf.Scanning.from_channel (open_in ai_file))
+    with Sys_error _ ->
+      Format.printf "Create New AI";
+      TicTacToe.create_ai [36; 18; 18]
+  in
+  for i = 1 to 100 do
+    for j = 1 to 100 do
       TicTacToe.learn 0.1 ai;
     done;
     let s = TicTacToe.stats (TicTacToe.make_ai_player ai) TicTacToe.random_player in
     Format.printf "%d : %a@\n%!" i TicTacToe.pp_stats s
-  done
+  done;
+  TicTacToe.save_ai (Format.formatter_of_out_channel (open_out ai_file)) ai;
