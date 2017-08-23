@@ -1,5 +1,13 @@
 
 open Neural
+(*
+make xor_1.dot.png error_during_learn_xor.plot.png
+
+ce fichier permet de tester les fonctions d'apprentissage et d'évaluation.
+Ici, on teste avec 2 couches cachées, de 4 et 4, pour les fonctions xor, and et or.
+On fait apprendre 30 réseaux pendant 1000 itérations.
+
+*)
 
 let () =
   let open Tanh in
@@ -16,6 +24,8 @@ let () =
       [0.; 0.; 1.], [0.; 0.; 0.];
     ] in
   (*
+     décommentez ça pour tester uniquement une fonction (ici, i=2 donc c'est or)
+     il faut aussi changer noutput pour mettre 1
   let examples = List.map (fun (in_, out) ->
       in_, List.filter (fun (i, _) -> i = 2) (List.mapi (fun i j -> i, j) out)
            |> List.map snd) examples in *)
