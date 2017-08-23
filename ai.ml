@@ -164,10 +164,10 @@ end = struct
           if G.won ns player then tdend F.min F.max 
           else if G.draw ns player then tdend F.neutral F.neutral
           else
-            let learning_rate = f ns other_player in
+            let learning_rate = (f ns other_player) *. 0.5 in
             begin
               refw := Neural.expected learning_rate F.f' [| F.invert score |] values_t0 datas_t0;
-              learning_rate *. 0.2 (* plus on s'éloigne d'une fin de partie, moins on apprend *)
+              learning_rate
             end
         end
     in ignore (f (G.state0 ()) G.p1)
