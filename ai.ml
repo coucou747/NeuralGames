@@ -69,6 +69,9 @@ module GamePlay (G : Game) (F : Neural.Activation) : sig
   val create_ai : int list -> airef
   val make_ai_player : airef -> fplayer
   val learn : float -> airef -> unit
+
+  val save_ai : Format.formatter -> airef -> unit
+  val load_ai : Scanf.Scanning.in_channel -> airef
     
   val play : ?silent:bool -> fplayer -> fplayer -> G.player option
   val stats : fplayer -> fplayer -> stats_t
@@ -97,6 +100,27 @@ end = struct
     let ninputs = Array.length (inputs G.p1 (G.state0 ())) in
     let w = Layer.init_weights ninputs (List.append layers [1]) in
     ref w
+
+  let save_ai f w =
+    Format.fprintf f "%d@\n" (List.length (!w));
+    List.iter (fun layer ->
+        Format.fprintf f "%d %d " (Array.length layer) (Array.length layer.(0));
+        Array.iter (fun weights ->
+            Array.iter (fun weight -> Format.fprintf f "%Lx " (Int64.bits_of_float weight)) weights;
+          ) layer;
+        Format.fprintf f "@\n%!"
+      )
+      (!w)
+
+  let load_ai f =
+    let t = Scanf.bscanf f "%d " (fun nlayers ->
+        Array.init nlayers (fun _ ->
+            Scanf.bscanf f "%d %d " (fun rows cols ->
+                Array.init rows (fun _ ->
+                    Array.init cols (fun _ ->
+                        Scanf.bscanf f "%Lx " Int64.float_of_bits
+                      )))))
+  in ref (Array.to_list t)
                                                                                          
   let move_score_ai_player refw state player =
     let moves = G.all_moves state player in
