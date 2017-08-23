@@ -195,6 +195,6 @@ end = struct
       in f (n - 1) p2 p1 s2 s1 score
     in f 100 fplayer1 fplayer2 (1, 0, 0) (0, 0, 1) (0, 0, 0)
 
-  let pp_stats f (a, b, c) = Format.fprintf f "(W:%d, D:%d, L:%d)" a b c
+  let pp_stats f (a, b, c) = Format.fprintf f "(W:%d, D:%d, L:%d score=%d/%d)" a b c ( a * 2 + b) ((a + b + c) * 2)
   
 end
