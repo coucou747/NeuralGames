@@ -56,12 +56,12 @@ module TicState : Game = struct
     state.(coords) <- Remplissage.empty;
     state
 
-  let li_of_state state =
+  let li_of_state lines state =
     List.map (List.map (fun i -> state.(i))) lines
   
   let pp_movement f i = Format.fprintf f "%d" i
   let pp_state f state =
-    let li = li_of_state state in
+    let li = li_of_state lines state in
     let pline = pp_list
         (fun f i ->
            Format.fprintf f
@@ -76,8 +76,29 @@ module TicState : Game = struct
 
   let input f = Scanf.bscanf f "%i\n" (fun i -> i)
 
+  let select li =
+    let li = List.sort compare li in List.hd li
+
+
+
+    
+  let all_li = [
+    lines;
+    colones;
+    (List.map List.rev lines);
+    (List.map List.rev colones);
+  ]
+  let all_li = List.flatten [
+      all_li;
+      (List.map List.rev all_li);
+      (List.map (List.map List.rev) all_li)
+    ]
+  
   let floats_of_state player s =
-    li_of_state s |> List.flatten |> List.map (Remplissage.floats_of_cell player) |> List.flatten
+    let all_li = List.map (fun l -> li_of_state l s) all_li in
+    List.map 
+      (fun li -> List.flatten li |> List.map (Remplissage.floats_of_cell player) |> List.flatten)
+      all_li |> select
 end
 
 module TicTacToe = GamePlay(TicState)(Neural.Tanh)
