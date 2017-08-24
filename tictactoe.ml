@@ -93,7 +93,12 @@ end
 
 module TicTacToe = GamePlay(TicState)(Neural.Tanh)
 
-(* let _winner = TicTacToe.play TicTacToe.random_player TicTacToe.stdin_player *)
+
+let () = Random.self_init ()
+
+
+let winner = TicTacToe.play TicTacToe.random_player TicTacToe.random_player
+let () = Format.printf "%a@\n%!" (pp_option TicState.pp_player) winner
 
 let () =
   let ai_file =  "tictactoe_ai.nn" in
