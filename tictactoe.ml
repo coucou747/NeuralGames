@@ -1,13 +1,5 @@
 open Ai
 
-let rec pp_list pitem psep f li =
-  match li with
-  | [] -> ()
-  | [item] -> pitem f item
-  | hd::tl -> psep f pitem hd (pp_list pitem psep) tl
-
-let pp_sep fmt f ppa a ppb b =  Format.fprintf f fmt ppa a ppb b
-
 let rec seq_append a b li =
   if a > b then li
   else seq_append a (b - 1) (b :: li)
@@ -62,17 +54,19 @@ module TicState : Game = struct
   let pp_movement f i = Format.fprintf f "%d" i
   let pp_state f state =
     let li = li_of_state lines state in
-    let pline = pp_list
+    let pline =
+      Format.pp_print_list ~pp_sep:(fun f () -> Format.fprintf f " ")
         (fun f i ->
            Format.fprintf f
              (if i = Remplissage.c1 then "O" else
               if i = Remplissage.c2 then "X" else
                 " "
              ))
-        (pp_sep "%a %a")
     in
     let pline f li = Format.fprintf f "|%a|" pline li in
-    Format.fprintf f "%a@\n" (pp_list pline (pp_sep "%a@\n%a")) li
+    Format.fprintf f "%a@\n"
+      (Format.pp_print_list ~pp_sep:(fun f () -> Format.fprintf f "@\n") pline)
+      li
 
   let input f = Scanf.bscanf f "%i\n" (fun i -> i)
 
@@ -116,7 +110,7 @@ let () =
   in
   for i = 1 to 100 do
     for j = 1 to 100 do
-      TicTacToe.learn 0.1 ai;
+      TicTacToe.learn 0.01 ai;
     done;
     let s = TicTacToe.stats (TicTacToe.make_ai_player ai) TicTacToe.random_player in
     Format.printf "%d : %a@\n%!" i TicTacToe.pp_stats s
