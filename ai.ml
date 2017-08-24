@@ -1,4 +1,6 @@
 open StdAddon
+
+type 'a printer = Format.formatter -> 'a -> unit
     
 module Remplissage : sig
   type cell
@@ -13,6 +15,8 @@ module Remplissage : sig
   val c2 : cell
   val cell_of_player : player -> cell
   val floats_of_cell : player -> cell -> float list
+  val pp_player : player printer
+  val pp_cell : cell printer
 end = struct
   type cell = int
   type player = int
@@ -31,9 +35,10 @@ end = struct
     | 0 -> [0.; 0.]
     | (1 | -1) as m -> if player = m then [1.; 0.] else [0.; 1.]
     | _ -> assert false
-end
 
-type 'a printer = Format.formatter -> 'a -> unit
+  let pp_player f p = Format.fprintf f "%d" p
+  let pp_cell f p = Format.fprintf f "%d" p
+end
 
 module type Game = sig
   type player
@@ -52,9 +57,9 @@ module type Game = sig
   val undo : state -> player -> undo_t -> state
   val pp_state : state printer
   val pp_movement : movement printer
+  val pp_player : player printer
   val input : Scanf.Scanning.in_channel -> movement
 
-  
   val floats_of_state : player -> state -> float list
 end
 

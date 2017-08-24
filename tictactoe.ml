@@ -11,6 +11,8 @@ module TicState : Game = struct
   type movement = int
   type undo_t = movement
 
+  let pp_player = Remplissage.pp_player
+  
   let state0 () = Array.make 9 Remplissage.empty
   
   let line0 = 0 -- 2
