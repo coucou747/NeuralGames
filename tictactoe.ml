@@ -29,9 +29,8 @@ module TicState : Game = struct
         List.for_all (fun index -> state.(index) = c) li
       ) indexes_wons
   
-  let coords = 1 -- 8
+  let coords = 0 -- 8
 
-  
   let draw state player =
     List.for_all (fun c -> state.(c) != Remplissage.empty) coords
   
