@@ -14,6 +14,7 @@ module Remplissage : sig
   val c1 : cell
   val c2 : cell
   val cell_of_player : player -> cell
+  val float_of_cell : player -> cell -> float
   val floats_of_cell : player -> cell -> float list
   val pp_player : player printer
   val pp_cell : cell printer
@@ -34,6 +35,11 @@ end = struct
   let floats_of_cell player i = match i with
     | 0 -> [0.; 0.]
     | (1 | -1) as m -> if player = m then [1.; 0.] else [0.; 1.]
+    | _ -> assert false
+      
+  let float_of_cell player i = match i with
+    | 0 -> 0.5
+    | (1 | -1) as m -> if player = m then 0. else 1.
     | _ -> assert false
 
   let pp_player f p = Format.fprintf f "%d" p
