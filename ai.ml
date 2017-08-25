@@ -93,10 +93,11 @@ end = struct
                                           
   type airef = float array array list ref
 
-
   let random_player state player =
     let moves = G.all_moves state player |> Array.of_list in
-    moves.(Random.int (Array.length moves))
+    let n = Array.length moves in
+    assert (n != 0);
+    moves.(Random.int n)
       
   let stdin_player state player = G.input Scanf.Scanning.stdin
   
