@@ -160,10 +160,9 @@ end = struct
           else if G.draw ns player then tdend F.neutral F.neutral
           else
             let learning_rate = (f ns other_player) *. 0.5 in
-            begin
-              refw := N.expected learning_rate [| F.invert score |] values_t0 datas_t0;
-              learning_rate
-            end
+            let values_t0, datas_t0 = N.computes (!refw) inputs_t0 in
+            refw := N.expected learning_rate [| F.invert score |] values_t0 datas_t0;
+            learning_rate
         end
     in ignore (f (G.state0 ()) G.p1)
     
