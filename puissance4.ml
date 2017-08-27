@@ -99,7 +99,9 @@ module P4State : Game = struct
     let li' = List.map List.rev li in
     let li = if li < li' then li else li' in
     List.flatten (List.map (Remplissage.floats_of_cell player) (List.flatten li))
-      
+
+
+  let size_neural = [40; 20; 20; 20]
 end
 
 module Main = Arguments.Make(P4State)(Neural.Tanh)

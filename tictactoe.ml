@@ -68,9 +68,6 @@ module TicState : Game = struct
 
   let select li =
     let li = List.sort compare li in List.hd li
-
-
-
     
   let all_li = [
     lines;
@@ -89,6 +86,8 @@ module TicState : Game = struct
     List.map 
       (fun li -> List.flatten li |> List.map (Remplissage.floats_of_cell player) |> List.flatten)
       all_li |> select
+
+  let size_neural = [36; 18; 18]
 end
 
 module Main = Arguments.Make(TicState)(Neural.Tanh)

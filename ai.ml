@@ -66,6 +66,8 @@ module type Game = sig
   val pp_player : player printer
   val input : Scanf.Scanning.in_channel -> movement
 
+  val size_neural : int list
+  
   val floats_of_state : player -> state -> float list
 end
 

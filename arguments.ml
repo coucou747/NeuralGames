@@ -56,7 +56,7 @@ let () =
           GP.load_ai (Scanf.Scanning.from_channel (open_in ai_file))
         with Sys_error _ ->
           Format.printf "Create New AI";
-          GP.create_ai [40; 20; 20; 20]
+          GP.create_ai G.size_neural
       in
       for i = 1 to opt.learn_iterations do
         for j = 1 to opt.learn_steps do
