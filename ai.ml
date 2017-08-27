@@ -91,9 +91,11 @@ module GamePlay (G : Game) (F : Neural.Activation) : sig
   val pp_stats : Format.formatter -> stats_t -> unit
     
 end = struct
-  type fplayer = G.state -> G.player -> G.movement
-                                          
-  type airef = float array array list ref
+  type fplayer = G.state -> G.player -> G.movement  
+  
+  module N = Neural.Make(F)  
+                                        
+  type airef = N.neural ref
 
   let random_player state player =
     let moves = G.all_moves state player |> Array.of_list in
@@ -103,38 +105,17 @@ end = struct
       
   let stdin_player state player = G.input Scanf.Scanning.stdin
   
-  
-  module Layer = Neural.Layer(F)  
-
   let inputs player state =
     Array.of_list
     ( 1. :: (G.floats_of_state player state  |> List.map F.convert01))
 
   let create_ai layers =
     let ninputs = Array.length (inputs G.p1 (G.state0 ())) in
-    let w = Layer.init_weights ninputs (List.append layers [1]) in
+    let w = N.make ninputs (List.append layers [1]) in
     ref w
 
-  let save_ai f w =
-    Format.fprintf f "%d@\n" (List.length (!w));
-    List.iter (fun layer ->
-        Format.fprintf f "%d %d " (Array.length layer) (Array.length layer.(0));
-        Array.iter (fun weights ->
-            Array.iter (fun weight -> Format.fprintf f "%Lx " (Int64.bits_of_float weight)) weights;
-          ) layer;
-        Format.fprintf f "@\n%!"
-      )
-      (!w)
-
-  let load_ai f =
-    let t = Scanf.bscanf f "%d " (fun nlayers ->
-        Array.init nlayers (fun _ ->
-            Scanf.bscanf f "%d %d " (fun rows cols ->
-                Array.init rows (fun _ ->
-                    Array.init cols (fun _ ->
-                        Scanf.bscanf f "%Lx " Int64.float_of_bits
-                      )))))
-  in ref (Array.to_list t)
+  let save_ai f x = N.save f (!x)
+  let load_ai f = ref (N.load f)
                                                                                          
   let move_score_ai_player refw state player =
     let moves = G.all_moves state player in
@@ -142,7 +123,7 @@ end = struct
         let state, undo = G.play state player move in
         let floats = inputs player state in (* current player, next state *)
         let _state = G.undo state player undo in
-        let tab, _data = Neural.computes Layer.compute (!refw) floats in
+        let tab, _data = N.computes (!refw) floats in
         move, tab.(0)
       ) moves in
     fold1 (fun  (movea, scorea) (moveb, scoreb) ->
@@ -166,13 +147,13 @@ end = struct
         begin
           let move, score =  move_score_ai_player refw state player in
           let inputs_t0 = inputs other_player state in
-          let values_t0, datas_t0 = Neural.computes Layer.compute (!refw) inputs_t0 in
+          let values_t0, datas_t0 = N.computes (!refw) inputs_t0 in
           let ns, _ = G.play state player move in
           let tdend score_t0 score_t1 =
-              refw := Neural.expected learning_rate F.f' [| score_t0 |] values_t0 datas_t0;
+              refw := N.expected learning_rate [| score_t0 |] values_t0 datas_t0;
               let inputs_t1 = inputs player ns in
-              let values_t1, datas_t1 = Neural.computes Layer.compute (!refw) inputs_t1 in
-              refw := Neural.expected learning_rate F.f' [| score_t1 |] values_t1 datas_t1;
+              let values_t1, datas_t1 = N.computes (!refw) inputs_t1 in
+              refw := N.expected learning_rate [| score_t1 |] values_t1 datas_t1;
               learning_rate
           in
           if G.won ns player then tdend F.min F.max 
@@ -180,7 +161,7 @@ end = struct
           else
             let learning_rate = (f ns other_player) *. 0.5 in
             begin
-              refw := Neural.expected learning_rate F.f' [| F.invert score |] values_t0 datas_t0;
+              refw := N.expected learning_rate [| F.invert score |] values_t0 datas_t0;
               learning_rate
             end
         end

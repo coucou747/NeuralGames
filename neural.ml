@@ -70,12 +70,30 @@ let addbiais input =
        if i = 0 then 1.
        else input.(i - 1))
 
-let computes (compute: float array -> float array array -> float array * float array) layers input =
-  List.fold_left (fun (input, li) layerw ->
-      let sums, output = compute input layerw in
-      (output, (sums, output, input, layerw)::li)
-    ) (input, []) layers
+module Make (F : Activation) : sig
+  type neural
+  type datat
+  val make : int -> int list -> neural
+  val computes : neural -> float array -> float array * datat
+  val debug : Format.formatter -> float array -> datat -> unit
+  val expected : float -> float array -> float array -> datat -> neural
+  val learns : Format.formatter -> int -> float -> neural -> (float array * float array) list -> neural
+  val save : Format.formatter -> neural -> unit
+  val load : Scanf.Scanning.in_channel -> neural
+    
+end = struct
+  
+  module Layer = Layer(F)
 
+  let make = Layer.init_weights
+  
+  type neural = float array array list
+  type datat = (float array * float array * float array * float array array) list
+  let computes layers input =
+    List.fold_left (fun (input, li) layerw ->
+        let sums, output = Layer.compute input layerw in
+        (output, (sums, output, input, layerw)::li)
+      ) (input, []) layers
 
 let debug debug_channel input datas =
   Format.fprintf debug_channel "@[<v 2>digraph {@\nsplines=line;@[<v 2>@\nsubgraph cluster_input {";
@@ -141,11 +159,11 @@ let multiply21 mat tab =
           (indice + 1, sum +. tab.(indice) *. value)) (0, 0.) vect)
     ) mat
 
-let expected learningRate f' expected values datas=
+let expected learningRate expected values datas=
   let fixlay
       (weights, (error : float array))
       (sums, values, (prev_values:float array), (layerw:float array array)) =
-    let delta = dot (Array.map f' sums) error in
+    let delta = dot (Array.map F.f' sums) error in
     let changes = Array.mapi (fun i d -> scalar prev_values (d *. learningRate) ) delta in
     let prev_error = multiply21 (transpose layerw) delta in
       (add changes layerw):: weights, prev_error
@@ -154,25 +172,40 @@ let expected learningRate f' expected values datas=
   let nw, _ = List.fold_left fixlay ([], error) datas
   in nw
 
-let ptab f array =
-  let pp_sep f () = Format.fprintf f " " in
-  Format.pp_print_list ~pp_sep (fun f v -> Format.fprintf f "%2.2f" v) f (Array.to_list array)
-
-let learn learning_rate lcompute f' weights examples =
+let learn learning_rate weights examples =
   List.fold_left (fun (sum_error, weights) (inputs, expectedv) ->
-      let values, datas = computes lcompute weights inputs in
+      let values, datas = computes weights inputs in
       
       let gerror = substract values expectedv |> Array.map (fun x -> x *. x) |> Array.fold_left (+.) 0. in
-      Format.printf "values %a expected %a (error=%f)@\n" ptab values ptab expectedv gerror;
-      sum_error +. gerror, expected learning_rate f' expectedv values datas
+      sum_error +. gerror, expected learning_rate expectedv values datas
     ) (0., weights) examples
 
-let rec learns error_channel n learning_rate lcompute f' weights examples =
+let rec learns error_channel n learning_rate weights examples =
   if n = 0 then weights
   else
-    let error, weights = learn learning_rate lcompute f' weights examples in
+    let error, weights = learn learning_rate weights examples in
     Format.fprintf error_channel "%f@\n" error;
-    learns error_channel (n - 1) learning_rate lcompute f' weights examples
+    learns error_channel (n - 1) learning_rate weights examples
 
-module LayerSigmoid = Layer(Sigmoid)
-module LayerTanh = Layer(Tanh)
+  let save f w =
+    Format.fprintf f "%d@\n" (List.length w);
+    List.iter (fun layer ->
+        Format.fprintf f "%d %d " (Array.length layer) (Array.length layer.(0));
+        Array.iter (fun weights ->
+            Array.iter (fun weight -> Format.fprintf f "%Lx " (Int64.bits_of_float weight)) weights;
+          ) layer;
+        Format.fprintf f "@\n%!"
+      )
+      w
+
+  let load f =
+    let t = Scanf.bscanf f "%d " (fun nlayers ->
+        Array.init nlayers (fun _ ->
+            Scanf.bscanf f "%d %d " (fun rows cols ->
+                Array.init rows (fun _ ->
+                    Array.init cols (fun _ ->
+                        Scanf.bscanf f "%Lx " Int64.float_of_bits
+                      )))))
+    in Array.to_list t
+      
+end

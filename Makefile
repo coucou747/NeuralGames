@@ -1,4 +1,6 @@
 
+all: tictactoe.native puissance4.native test_bool_neural.native
+
 %.native: *.ml
 	ocamlbuild $*.native
 
