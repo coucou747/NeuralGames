@@ -91,29 +91,4 @@ module TicState : Game = struct
       all_li |> select
 end
 
-module TicTacToe = GamePlay(TicState)(Neural.Tanh)
-
-
-let () = Random.self_init ()
-
-
-let winner = TicTacToe.play TicTacToe.random_player TicTacToe.random_player
-let () = Format.printf "%a@\n%!" (pp_option TicState.pp_player) winner
-
-let () =
-  let ai_file =  "tictactoe_ai.nn" in
-  let ai =
-    try
-      TicTacToe.load_ai (Scanf.Scanning.from_channel (open_in ai_file))
-    with Sys_error _ ->
-      Format.printf "Create New AI";
-      TicTacToe.create_ai [36; 18; 18]
-  in
-  for i = 1 to 100 do
-    for j = 1 to 100 do
-      TicTacToe.learn 0.01 ai;
-    done;
-    let s = TicTacToe.stats (TicTacToe.make_ai_player ai) TicTacToe.random_player in
-    Format.printf "%d : %a@\n%!" i TicTacToe.pp_stats s
-  done;
-  TicTacToe.save_ai (Format.formatter_of_out_channel (open_out ai_file)) ai;
+module Main = Arguments.Make(TicState)(Neural.Tanh)
