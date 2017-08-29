@@ -37,6 +37,8 @@ let () =
     "-training-file", Arg.String (fun s -> opt.file_to_train <- Some s), "sets the file for the neural network training";
     "-training-iterations", Arg.Int (fun i -> opt.learn_iterations <- i), "sets the number of training loop";
     "-training-steps", Arg.Int (fun i -> opt.learn_steps <- i), "sets the number of training steps (before stats)";
+    "-alphabeta-player1", Arg.Int (fun i -> opt.player1 <- GP.negamax_player i), "first player is a negamax of depth n";
+    "-alphabeta-player2", Arg.Int (fun i -> opt.player2 <- GP.negamax_player i), "second player is a negamax of depth n";
     "-training-ratio", Arg.Float (fun f -> opt.learn_ratio <- f), "sets the learning ratio";
     "-stats", Arg.Unit (fun () -> opt.stats <- true), "compute only statistics";
     

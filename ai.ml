@@ -67,7 +67,11 @@ module type Game = sig
   val input : Scanf.Scanning.in_channel -> movement
 
   val size_neural : int list
-  
+
+  val alpha0 : float
+  val beta0 : float
+  val eval : state -> player -> float
+
   val floats_of_state : player -> state -> float list
 end
 
@@ -89,7 +93,7 @@ module GamePlay (G : Game) (F : Neural.Activation) : sig
   val play : ?silent:bool -> fplayer -> fplayer -> G.player option
   val stats : fplayer -> fplayer -> stats_t
   val pp_stats : Format.formatter -> stats_t -> unit
-    
+  val negamax_player : int -> fplayer
 end = struct
   type fplayer = G.state -> G.player -> G.movement  
   
@@ -116,6 +120,33 @@ end = struct
 
   let save_ai f x = N.save f (!x)
   let load_ai f = ref (N.load f)
+
+  let rec negamax p state player alpha beta =
+    if G.won state player then -1.
+    else if G.draw state player then 0.
+    else if p = 0 then G.eval state player
+    else
+      let p = p - 1 in
+      let player = G.other_player player in
+      let moves = G.all_moves state player in
+      let score, _alpha, _beta = List.fold_left (fun (m, alpha, beta) move ->
+          if beta < alpha then (m, alpha, beta) else
+          let state, undo = G.play state player move in
+          let score = -. negamax p state player (-.beta) (-.alpha) in
+          let _state = G.undo state player undo in max m score, max m alpha, beta
+        ) (alpha, alpha, beta) moves in
+      score
+        
+  let negamax_player p state player =
+    let moves = G.all_moves state player |> shuffle in
+    let moves = List.map (fun move ->
+        let state, undo = G.play state player move in
+        let score = -. negamax p state player G.alpha0 G.beta0 in
+        let _state = G.undo state player undo in move, score
+      ) moves in
+    fst (fold1 (fun  (movea, scorea) (moveb, scoreb) ->
+        if scorea > scoreb then (movea, scorea) else (moveb, scoreb)
+      ) moves)
                                                                                          
   let move_score_ai_player refw state player =
     let moves = G.all_moves state player in

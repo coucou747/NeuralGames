@@ -102,6 +102,11 @@ module P4State : Game = struct
 
 
   let size_neural = [40; 20; 20; 20]
+                    
+  let alpha0 = -.2.
+  let beta0 = 2.
+  let eval f p = 0.
+
 end
 
 module Main = Arguments.Make(P4State)(Neural.Tanh)

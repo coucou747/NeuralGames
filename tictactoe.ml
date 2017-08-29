@@ -88,6 +88,11 @@ module TicState : Game = struct
       all_li |> select
 
   let size_neural = [36; 18; 18]
+  
+  let alpha0 = -.2.
+  let beta0 = 2.
+  let eval f p = 0.
+
 end
 
 module Main = Arguments.Make(TicState)(Neural.Tanh)

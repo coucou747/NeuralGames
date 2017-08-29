@@ -14,3 +14,14 @@ let pp_option pp f opt =
   match opt with
   | None -> Format.fprintf f "None"
   | Some x -> Format.fprintf f "Some(%a)" pp x
+
+let shuffle li =
+  let li = Array.of_list li in
+  let len = Array.length li in
+  for i = 0 to len - 1 do
+    let n = i + Random.int (len - i) in
+    let tmp = li.(i) in
+    li.(i) <- li.(n);
+    li.(n) <- tmp
+  done;
+  Array.to_list li
