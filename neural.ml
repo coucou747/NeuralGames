@@ -1,9 +1,10 @@
+open ArrayAbstraction
 
 module type Activation = sig
   type t = float -> float
   val f : float -> float
   val f' : float-> float
-  val rand_float_tab : int -> int -> float array
+  val rand_float : int -> int -> unit -> float
   val convert01 : float -> float
   val invert : float -> float
   val max : float
@@ -19,9 +20,9 @@ module Sigmoid : Activation = struct
   let f' x =
     let fx = f x in
     fx *. (1. -. fx)
-  let rand_float_tab nn n =
+  let rand_float nn n =
     let s =  sqrt (1. /. float_of_int (nn + n)) in
-    Array.init n (fun _ -> 4. *. rfloat () *. s)
+    (fun () -> 4. *. rfloat () *. s)
   let convert01 x = x
   let invert x = 1. -. x
   let min = 0.
@@ -35,9 +36,9 @@ module Tanh : Activation = struct
 
   let f x = tanh x
   let f' x = 1. -. (tanh x) *. (tanh x)
-  let rand_float_tab nn n = 
+  let rand_float nn n = 
     let s =  sqrt (1. /. float_of_int (nn + n)) in
-    Array.init n (fun _ -> 4. *. rfloat () *. s)
+    (fun () -> 4. *. rfloat () *. s)
   let convert01 x = x *. 2. -. 1.
   let invert x = -. x
     let min = -.1.
@@ -45,30 +46,14 @@ module Tanh : Activation = struct
   let neutral = 0.
 end
 
-let add =  Array.map2 (Array.map2 (+.))
-let scalar m s = Array.map (fun v -> v *. s) m
-
-let multiply12 tab mat =
-  Array.mapi (fun i _ ->
-      snd (Array.fold_left (fun (j, sum) v -> j + 1, sum +. v *. mat.(j).(i)
-         ) (0, 0.) tab)
-    ) mat.(0)
-    
-let multiply21 mat tab =
-  Array.map (fun submat ->
-      snd (Array.fold_left (fun (j, sum) v -> j + 1, sum +. v *. submat.(j)
-         ) (0, 0.) tab)
-    ) mat
-
-module Layer (F : Activation) = struct
-  let make_layer inputs n =
-    Array.init n (fun _ -> F.rand_float_tab n inputs)
+module Layer (F : Activation) (L:LinearOperations) = struct
+  let make_layer inputs n = let f = F.rand_float n inputs in L.init_matrix n inputs (fun _ _ -> f ())
   let rec init_weights ninputs = function
     | hd::tl -> make_layer ninputs hd :: init_weights hd tl
     | [] -> []
   let compute inputs weights =
-    let sums = multiply21 weights inputs in
-    sums, Array.map F.f sums
+    let sums = L.multiply21 weights inputs in
+    sums, L.map F.f sums
 end
 
 let addbiais input =
@@ -77,13 +62,13 @@ let addbiais input =
        if i = 0 then 1.
        else input.(i - 1))
 
-module Make (F : Activation) : sig
+module Make (F : Activation) (L:LinearOperations) : sig
 
   type neural
   type datat
   val make : int -> int list -> neural
   val computes : neural -> float array -> float array * datat
-  val debug : Format.formatter -> float array -> datat -> unit
+  val debug : Format.formatter -> L.vector -> datat -> unit
   val expected : float -> float array -> float array -> datat -> neural
   val learns : Format.formatter -> int -> float -> neural -> (float array * float array) list -> neural
   val save : Format.formatter -> neural -> unit
@@ -91,14 +76,18 @@ module Make (F : Activation) : sig
     
 end = struct
   
-  module Layer = Layer(F)
+  module Layer = Layer(F)(L)
 
   let make = Layer.init_weights
   
-  type neural = float array array list
-  type datat = (float array * float array * float array * float array array) list
+  type neural = L.matrix list
+  type datat = (L.vector * L.vector * L.vector * L.matrix) list
 
   let debug debug_channel input datas =
+    let input = L.to_array input in
+    let datas = List.map (fun (a, b, c, d) ->
+        L.to_array a, L.to_array b, L.to_array c, L.to_array2 d
+      ) datas in
     Format.fprintf debug_channel "@[<v 2>digraph {@\nsplines=line;@[<v 2>@\nsubgraph cluster_input {";
     Array.iteri (fun i v ->
         Format.fprintf debug_channel "@\ni_%d[label=\"i_%d %f\" color=\"lightblue2\" style=\"filled\" shape=\"diamond\" ]" i i v
@@ -135,24 +124,37 @@ end = struct
         (output, (sums, output, input, layerw)::li)
       ) (input, []) layers
 
-  let expected learningRate expected values datas=
+  let expected learningRate expected values datas =
     let fixlay (weights, error) (sums, values, prev_values, layerw) =
-      let delta = Array.mapi (fun i e -> e *. F.f' sums.(i)) error in
-      let changes = Array.mapi (fun i d -> scalar prev_values (d *. learningRate) ) delta in
-      let prev_error = multiply12 delta layerw in
-      (add changes layerw):: weights, prev_error
+      let fprimesums = L.map F.f' sums in
+      
+      let delta = L.v_times fprimesums error in
+      L.scalar delta learningRate;
+      let changes = L.scalar_vects_to_map delta prev_values in
+      let prev_error = L.multiply12 delta layerw in
+      (L.add changes layerw):: weights, prev_error
     in
-    let error = Array.map2 (-.) expected values in
+    let error = L.diff expected values in
     let nw, _ = List.fold_left fixlay ([], error) datas
     in nw
 
   let learn learning_rate weights examples =
     List.fold_left (fun (sum_error, weights) (inputs, expectedv) ->
         let values, datas = computes weights inputs in
-        let gerror = Array.map2 (-.) values expectedv |> Array.fold_left (fun a b -> a +. b *. b) 0. in
+        let gerror =  L.squaresumdiff values expectedv in
         sum_error +. gerror, expected learning_rate expectedv values datas
       ) (0., weights) examples
 
+
+  let expected learningRate e values datas =
+    let e = L.from_array e in
+    let values = L.from_array values in
+    expected learningRate e values datas 
+
+  let computes layers input =
+    let a, b = computes layers (L.from_array input) in
+    L.to_array a, b
+  
   let rec learns error_channel n learning_rate weights examples =
     if n = 0 then weights
     else
@@ -160,7 +162,13 @@ end = struct
       Format.fprintf error_channel "%f@\n" error;
       learns error_channel (n - 1) learning_rate weights examples
 
+
+  let learns error_channel n learning_rate weights examples =
+    let examples = List.map (fun (a, b) -> L.from_array a, L.from_array b) examples in
+    learns error_channel n learning_rate weights examples
+
   let save f w =
+    let w = List.map L.to_array2 w in
     Format.fprintf f "%d@\n" (List.length w);
     List.iter (fun layer ->
         Format.fprintf f "%d %d " (Array.length layer) (Array.length layer.(0));
@@ -179,6 +187,6 @@ end = struct
                     Array.init cols (fun _ ->
                         Scanf.bscanf f "%Lx " Int64.float_of_bits
                       )))))
-    in Array.to_list t
+    in List.map L.from_array2 (Array.to_list t)
 
 end

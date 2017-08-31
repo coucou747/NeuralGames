@@ -1,4 +1,5 @@
 open StdAddon
+open ArrayAbstraction
 
 type 'a printer = Format.formatter -> 'a -> unit
     
@@ -97,7 +98,7 @@ module GamePlay (G : Game) (F : Neural.Activation) : sig
 end = struct
   type fplayer = G.state -> G.player -> G.movement  
   
-  module N = Neural.Make(F)  
+  module N = Neural.Make(F)(MLArray)
                                         
   type airef = N.neural ref
 
