@@ -23,9 +23,20 @@ module MLArray : LinearOperations = struct
   type matrix = float array array
 
   let init = Array.init
-  let init_matrix x y f = Array.init y (fun y -> Array.init x (fun x ->  f y x))
+  let init_matrix x y f = Array.init x (fun x -> Array.init y (fun y ->  f y x))
   
-  let add =  Array.map2 (Array.map2 (+.))
+  let add a b =
+
+    if Array.length a != Array.length b || Array.length a.(0) != Array.length b.(0)
+    then
+      failwith ("wrong sizes : " ^ (string_of_int (Array.length a)) ^ " != " ^
+                (string_of_int (Array.length b)) ^ " || " ^
+                (string_of_int (Array.length a.(0))) ^ " != " ^
+                (string_of_int (Array.length b.(0))) ^ "."
+               );
+
+    Array.map2 (Array.map2 (+.)) a b
+      
   let diff = Array.map2 (-.)
   let v_times =  Array.map2 ( *.)
       
@@ -36,17 +47,28 @@ module MLArray : LinearOperations = struct
     done
     
   let multiply12 tab mat =
+    if Array.length mat != Array.length tab then
+      failwith ("wrong sizes : " ^  (string_of_int (Array.length mat)) ^ " != "
+                                     ^ (string_of_int (Array.length tab ))
+                ^ "(" ^  (string_of_int (Array.length mat.(0))) ^ ")"
+               );
     Array.mapi (fun i _ ->
         snd (Array.fold_left (fun (j, sum) v -> j + 1, sum +. v *. mat.(j).(i)
                              ) (0, 0.) tab)
       ) mat.(0)
+      
   let multiply21 mat tab =
+    if Array.length mat.(0) != Array.length tab then
+      failwith ("wrong sizes : " ^  (string_of_int (Array.length mat.(0))) ^ " != "
+                                     ^ (string_of_int (Array.length tab ))
+                ^ "(" ^  (string_of_int (Array.length mat)) ^ ")"
+               );
     Array.map (fun submat ->
         snd (Array.fold_left (fun (j, sum) v -> j + 1, sum +. v *. submat.(j)
                              ) (0, 0.) tab)
       ) mat
 
-  let scalar_vects_to_map v1 v2 = Array.map (fun d -> Array.map (( *.) d) v1) v2
+  let scalar_vects_to_map v1 v2 = Array.map (fun d -> Array.map (( *.) d) v2) v1
 
   let map = Array.map
 
@@ -73,14 +95,14 @@ module LacamlMat: LinearOperations = struct
   let multiply21 m v = gemv m v
   
   let init n f = Vec.init n (fun i -> f (i - 1))
-  let init_matrix x y f = Mat.init_cols y x (fun x y -> f (x - 1) (y - 1))
+  let init_matrix x y f = Mat.init_cols x y (fun x y -> f (y - 1) (x - 1))
   let map f vec = Vec.map f vec
   let squaresumdiff v1 v2 = Vec.ssqr_diff v1 v2
   let scalar_vects_to_map v1 v2 =
     Array.map (fun d ->
-        let v = copy v2 in
+        let v = copy v1 in
         scal d v;
-        v) (Vec.to_array v1) |> Mat.of_col_vecs
+        v) (Vec.to_array v2) |> Mat.of_col_vecs
    
   let from_array x = Vec.of_array x
   let to_array x = Vec.to_array x

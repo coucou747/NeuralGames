@@ -14,10 +14,10 @@ module Test (L : LinearOperations) = struct
   let mb = L.init_matrix 5 7 (fun x y -> float_of_int (x * 10 + y * y * 15))
   let mc = L.add ma mb
 
-  let h = L.multiply21 ma g
-  let i = L.multiply12 a ma
+  let h = L.multiply21 ma a
+  let i = L.multiply12 g ma
 
-  let md = L.scalar_vects_to_map b e
+  let md = L.scalar_vects_to_map e b
 end
 
 module Unit (A : LinearOperations) (B : LinearOperations) = struct

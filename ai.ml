@@ -98,7 +98,7 @@ module GamePlay (G : Game) (F : Neural.Activation) : sig
 end = struct
   type fplayer = G.state -> G.player -> G.movement  
   
-  module N = Neural.Make(F)(MLArray)
+  module N = Neural.Make(F)(LacamlMat)
                                         
   type airef = N.neural ref
 
