@@ -69,14 +69,18 @@ module LacamlMat: LinearOperations = struct
       
   let v_times v1 v2 = Vec.mul v1 v2
   let scalar v f = scal f v
-  let multiply12 v m = gemv m v
+  let multiply12 v m = gemv ~trans:`T m v
   let multiply21 m v = gemv m v
   
-  let init n f = Vec.init n f
-  let init_matrix x y f = Mat.init_rows x y f
+  let init n f = Vec.init n (fun i -> f (i - 1))
+  let init_matrix x y f = Mat.init_cols y x (fun x y -> f (x - 1) (y - 1))
   let map f vec = Vec.map f vec
   let squaresumdiff v1 v2 = Vec.ssqr_diff v1 v2
-  let scalar_vects_to_map v1 v2 = assert false
+  let scalar_vects_to_map v1 v2 =
+    Array.map (fun d ->
+        let v = copy v2 in
+        scal d v;
+        v) (Vec.to_array v1) |> Mat.of_col_vecs
    
   let from_array x = Vec.of_array x
   let to_array x = Vec.to_array x
