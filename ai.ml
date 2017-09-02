@@ -155,9 +155,12 @@ end = struct
         let state, undo = G.play state player move in
         let floats = inputs player state in (* current player, next state *)
         let _state = G.undo state player undo in
-        let tab, _data = N.computes (!refw) floats in
-        move, tab.(0)
+        move, floats
       ) moves in
+    let moves, floats = List.split moves in
+    let floats = Array.of_list floats in
+    let values = N.computes (!refw) floats in
+    let moves = List.mapi (fun i m -> m, values.(0).(i)) moves in
     fold1 (fun  (movea, scorea) (moveb, scoreb) ->
         if scorea > scoreb then (movea, scorea) else (moveb, scoreb)
       ) moves
@@ -179,12 +182,12 @@ end = struct
         begin
           let move, score =  move_score_ai_player refw state player in
           let inputs_t0 = inputs other_player state in
-          let values_t0, datas_t0 = N.computes (!refw) inputs_t0 in
+          let values_t0, datas_t0 = N.compute (!refw) inputs_t0 in
           let ns, _ = G.play state player move in
           let tdend score_t0 score_t1 =
               refw := N.expected learning_rate [| score_t0 |] values_t0 datas_t0;
               let inputs_t1 = inputs player ns in
-              let values_t1, datas_t1 = N.computes (!refw) inputs_t1 in
+              let values_t1, datas_t1 = N.compute (!refw) inputs_t1 in
               refw := N.expected learning_rate [| score_t1 |] values_t1 datas_t1;
               learning_rate
           in
@@ -192,7 +195,7 @@ end = struct
           else if G.draw ns player then tdend F.neutral F.neutral
           else
             let learning_rate = (f ns other_player) *. 0.5 in
-            let values_t0, datas_t0 = N.computes (!refw) inputs_t0 in
+            let values_t0, datas_t0 = N.compute (!refw) inputs_t0 in
             refw := N.expected learning_rate [| F.invert score |] values_t0 datas_t0;
             learning_rate
         end

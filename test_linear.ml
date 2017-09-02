@@ -14,6 +14,10 @@ module Test (L : LinearOperations) = struct
   let mb = L.init_matrix 5 7 (fun x y -> float_of_int (x * 10 + y * y * 15))
   let mc = L.add ma mb
 
+  let me = L.init_matrix 2 4 (fun x y -> float_of_int (x * 10 + y))
+  let mf = L.init_matrix 4 5 (fun x y -> float_of_int (x * 10 + y))
+  let mg = L.multiply me mf
+
   let h = L.multiply21 ma a
   let i = L.multiply12 g ma
 
@@ -69,7 +73,10 @@ module Unit (A : LinearOperations) (B : LinearOperations) = struct
     mat_eq "add" TA.mc TB.mc;
     vec_eq "multiply21" TA.h TB.h;
     vec_eq "multiply12" TA.i TB.i;
-    mat_eq "init_matrix" TA.md TB.md;
+    mat_eq "scalar_vects_to_map" TA.md TB.md;
+    mat_eq "init_matrix" TA.me TB.me;
+    mat_eq "init_matrix" TA.mf TB.mf;
+    mat_eq "matrix multiply" TA.mg TB.mg;
     
 end
 

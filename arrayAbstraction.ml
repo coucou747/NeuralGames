@@ -8,14 +8,17 @@ module type LinearOperations = sig
   val scalar : vector -> float -> unit
   val multiply12 : vector -> matrix -> vector
   val multiply21 : matrix -> vector -> vector
+  val multiply : matrix -> matrix -> matrix
   val init : int -> (int -> float) -> vector
   val init_matrix : int -> int -> (int -> int -> float) -> matrix
   val map : (float -> float) -> vector -> vector
+  val map2 : (float -> float) -> matrix -> matrix
   val squaresumdiff : vector -> vector -> float
   val scalar_vects_to_map : vector -> vector -> matrix
   val from_array : float array -> vector
   val to_array : vector -> float array
   val from_array2 : float array array -> matrix
+  val from_array2_transposee : float array array -> matrix
   val to_array2 : matrix -> float array array
 end
 module MLArray : LinearOperations = struct
@@ -26,7 +29,6 @@ module MLArray : LinearOperations = struct
   let init_matrix x y f = Array.init x (fun x -> Array.init y (fun y ->  f y x))
   
   let add a b =
-
     if Array.length a != Array.length b || Array.length a.(0) != Array.length b.(0)
     then
       failwith ("wrong sizes : " ^ (string_of_int (Array.length a)) ^ " != " ^
@@ -68,14 +70,21 @@ module MLArray : LinearOperations = struct
                              ) (0, 0.) tab)
       ) mat
 
+  let multiply a b = Array.map (fun v -> multiply12 v b) a
+  
   let scalar_vects_to_map v1 v2 = Array.map (fun d -> Array.map (( *.) d) v2) v1
 
   let map = Array.map
+  let map2 f m = Array.map (Array.map f) m
 
   let from_array x = x
   let to_array x = x
   let from_array2 x = x
   let to_array2 x = x
+  let from_array2_transposee m =
+    let x = Array.length (m)
+    and y = Array.length (m.(0)) in
+    Array.init y (fun y -> Array.init x (fun x ->  m.(x).(y)))
 
   let squaresumdiff v1 v2 = Array.map2 (-.) v1 v2  |> Array.fold_left (fun a b -> a +. b *. b) 0.
 end
@@ -93,10 +102,12 @@ module LacamlMat: LinearOperations = struct
   let scalar v f = scal f v
   let multiply12 v m = gemv ~trans:`T m v
   let multiply21 m v = gemv m v
+  let multiply a b = gemm a b
   
   let init n f = Vec.init n (fun i -> f (i - 1))
   let init_matrix x y f = Mat.init_cols x y (fun x y -> f (y - 1) (x - 1))
   let map f vec = Vec.map f vec
+  let map2 f mat = Mat.map f mat
   let squaresumdiff v1 v2 = Vec.ssqr_diff v1 v2
   let scalar_vects_to_map v1 v2 =
     Array.map (fun d ->
@@ -107,5 +118,7 @@ module LacamlMat: LinearOperations = struct
   let from_array x = Vec.of_array x
   let to_array x = Vec.to_array x
   let from_array2 x = Mat.of_array x
+  let from_array2_transposee x = Mat.transpose_copy (Mat.of_array x)
+      
   let to_array2 x = Mat.to_array x
 end

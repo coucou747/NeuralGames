@@ -54,6 +54,9 @@ module Layer (F : Activation) (L:LinearOperations) = struct
   let compute inputs weights =
     let sums = L.multiply21 weights inputs in
     sums, L.map F.f sums
+  let computes inputs weights =
+    let sums = L.multiply weights inputs in
+    sums, L.map2 F.f sums
 end
 
 let addbiais input =
@@ -67,7 +70,8 @@ module Make (F : Activation) (L:LinearOperations) : sig
   type neural
   type datat
   val make : int -> int list -> neural
-  val computes : neural -> float array -> float array * datat
+  val compute : neural -> float array -> float array * datat
+  val computes : neural -> float array array -> float array array
   val debug : Format.formatter -> L.vector -> datat -> unit
   val expected : float -> float array -> float array -> datat -> neural
   val learns : Format.formatter -> int -> float -> neural -> (float array * float array) list -> neural
@@ -118,11 +122,17 @@ end = struct
         (List.rev datas));
     Format.fprintf debug_channel "@]@\n}@\n"
 
-  let computes layers input =
+  let compute layers input =
     List.fold_left (fun (input, li) layerw ->
         let sums, output = Layer.compute input layerw in
         (output, (sums, output, input, layerw)::li)
       ) (input, []) layers
+      
+  let computes layers inputs =
+    List.fold_left (fun input layerw ->
+        let sums, output = Layer.computes input layerw in
+        output
+      ) (inputs) layers
 
   let expected learningRate expected values datas =
     let fixlay (weights, error) (sums, values, prev_values, layerw) =
@@ -140,7 +150,7 @@ end = struct
 
   let learn learning_rate weights examples =
     List.fold_left (fun (sum_error, weights) (inputs, expectedv) ->
-        let values, datas = computes weights inputs in
+        let values, datas = compute weights inputs in
         let gerror =  L.squaresumdiff values expectedv in
         sum_error +. gerror, expected learning_rate expectedv values datas
       ) (0., weights) examples
@@ -151,9 +161,13 @@ end = struct
     let values = L.from_array values in
     expected learningRate e values datas 
 
-  let computes layers input =
-    let a, b = computes layers (L.from_array input) in
+  let compute layers input =
+    let a, b = compute layers (L.from_array input) in
     L.to_array a, b
+    
+  let computes layers input =
+    let a = computes layers (L.from_array2_transposee input) in
+    L.to_array2 a
   
   let rec learns error_channel n learning_rate weights examples =
     if n = 0 then weights
