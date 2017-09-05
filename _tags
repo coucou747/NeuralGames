@@ -1,0 +1,3 @@
+<*.byte>: linkdep(cublas.o), custom, use_libcuda
+<*.native>: linkdep(cublas.o), use_libcuda
+<cublas.c>: use_libcuda
