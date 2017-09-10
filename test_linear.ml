@@ -20,7 +20,6 @@ module Test (L : LinearOperations) = struct
 
   let h = L.multiply21 ma a
   let i = L.multiply12 g ma
-
   let md = L.scalar_vects_to_map e b
 end
 
@@ -71,6 +70,7 @@ module Unit (A : LinearOperations) (B : LinearOperations) = struct
     mat_eq "init_matrix" TA.ma TB.ma;
     mat_eq "init_matrix" TA.mb TB.mb;
     mat_eq "add" TA.mc TB.mc;
+
     vec_eq "multiply21" TA.h TB.h;
     vec_eq "multiply12" TA.i TB.i;
     mat_eq "scalar_vects_to_map" TA.md TB.md;
@@ -80,4 +80,5 @@ module Unit (A : LinearOperations) (B : LinearOperations) = struct
     
 end
 
-module T = Unit (MLArray) (LacamlMat)
+module T1 = Unit (MLArray) (LacamlMat)
+module T2 = Unit (MLArray) (CuMat)

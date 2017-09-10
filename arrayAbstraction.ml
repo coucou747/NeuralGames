@@ -119,6 +119,41 @@ module LacamlMat: LinearOperations = struct
   let to_array x = Vec.to_array x
   let from_array2 x = Mat.of_array x
   let from_array2_transposee x = Mat.transpose_copy (Mat.of_array x)
-      
   let to_array2 x = Mat.to_array x
+end
+
+module CuMat = struct
+  open Cudabindings
+
+  type vector = Vec.t
+  type matrix = Mat.t
+
+  let diff v1 v2 = Vec.sub v1 v2
+    
+  let add a b = Mat.add a b
+      
+  let v_times v1 v2 = Vec.mul v1 v2
+  let scalar v f = Vec.scal f v
+  let multiply12 v m = gemv ~trans:`T m v
+  let multiply21 m v = gemv m v
+  let multiply a b = gemm a b
+  
+  let init = Vec.init
+  let init_matrix x y f = Mat.init x y f
+  let map f vec = Vec.map f vec
+  let map2 f mat = Mat.map f mat
+  let squaresumdiff v1 v2 = Vec.ssqr_diff v1 v2
+  let scalar_vects_to_map v1 v2 =
+    let v1 = Vec.to_array v1
+    and v2 = Vec.to_array v2 in
+    Mat.init (Array.length v2) (Array.length v1) (fun x y ->
+        v2.(x) *. v1.(y))
+    
+   
+  let from_array x = Vec.of_array x
+  let to_array x = Vec.to_array x
+  let from_array2 x = Mat.of_array x
+  let from_array2_transposee x = Mat.of_array_transpose x
+  let to_array2 x = Mat.to_array x
+  
 end

@@ -1,3 +1,4 @@
 <*.byte>: linkdep(cublas.o), custom, use_libcuda
-<*.native>: linkdep(cublas.o), use_libcuda
+<*.native>: linkdep(cublas.o), use_libcuda, pkg_lacaml, pkg_bigarray
 <cublas.c>: use_libcuda
+true: debug
