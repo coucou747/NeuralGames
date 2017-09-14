@@ -88,7 +88,7 @@ static struct custom_operations cublas_mat__ops =
 value floatstar_to_value(float* ptr, int len){
   CAMLparam0();
   CAMLlocal1(v);
-  v = caml_alloc_custom(&cublas_vect__ops, sizeof(struct cublas_vect),1000, 1000000);
+  v = caml_alloc_custom(&cublas_vect__ops, sizeof(struct cublas_vect),1000, 1000);
   ((struct cublas_vect *)Data_custom_val(v))->len = len;
   ((struct cublas_vect *)Data_custom_val(v))->f = ptr;
   CAMLreturn(v);
@@ -97,7 +97,7 @@ value floatstar_to_value(float* ptr, int len){
 value floatstar_mat_to_value(float* ptr, int dim1, int dim2){
   CAMLparam0();
   CAMLlocal1(v);
-  v = caml_alloc_custom(&cublas_mat__ops, sizeof(struct cublas_mat),1000, 1000000);
+  v = caml_alloc_custom(&cublas_mat__ops, sizeof(struct cublas_mat),1000, 1000);
   ((struct cublas_mat *)Data_custom_val(v))->dim1 = dim1;
   ((struct cublas_mat *)Data_custom_val(v))->dim2 = dim2;
   ((struct cublas_mat *)Data_custom_val(v))->f = ptr;
@@ -129,7 +129,7 @@ CAMLprim value cublas_vect_of_array(value caml_array){
 CAMLprim value cublas_matrix_of_array(value transposed, value caml_array){
   CAMLparam2 (transposed, caml_array);
   CAMLlocal1(tmp_tab);
-  int transposed_ = Val_bool(transposed);
+  int transposed_ = Bool_val(transposed);
   float* ptr;
   mlsize_t dim1 = caml_array_length(caml_array);
   mlsize_t dim2 = caml_array_length(Field(caml_array, 0));
@@ -141,15 +141,16 @@ CAMLprim value cublas_matrix_of_array(value transposed, value caml_array){
     tmp_tab = Field(caml_array, i);
     for (j = 0; j < dim2; ++j){
       if (transposed_){
-        cdata[i + j * dim1] = Double_field(tmp_tab, j);
-      }else{
         cdata[i * dim2 + j] = Double_field(tmp_tab, j);
+      }else{
+        cdata[i + j * dim1] = Double_field(tmp_tab, j);
       }
     }
   }
   check_status(cublasSetVector(len, sizeof(float), cdata, 1, ptr, 1));
   free(cdata);
-  CAMLreturn(floatstar_mat_to_value(ptr, dim1, dim2));
+  CAMLreturn(floatstar_mat_to_value(ptr, transposed_ ? dim2 : dim1,
+                                    transposed_ ? dim1 : dim2));
 }
 
 CAMLprim value cublas_vect_copy(value vect0){
@@ -237,6 +238,29 @@ CAMLprim value cublas_mul_matrix_vector(value v1, value v2, value alpha, value b
   CAMLreturn(floatstar_to_value(ptr, len));
 }
 
+CAMLprim value cublas_mul_vects_as_matrix(value v1, value v2){
+  CAMLparam2 (v1, v2);
+  int dim1 = value_len(v1), dim2 = value_len(v2);
+  float alpha_f = 1;
+  float beta_f = 0;
+  float* ptr;
+  int m = dim1;
+  int n = dim2;
+  int k = 1;
+  int len = dim1 * dim2;
+  check_status(cublasAlloc( len, sizeof(float), (void**)&ptr));
+  //cudaMemset(ptr, 0, len * sizeof(float));
+  check_status(cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N,
+                           m, n, k,
+                           &alpha_f,
+                           value_to_floatstar(v1), m,
+                           value_to_floatstar(v2), k,
+                           &beta_f,
+                           ptr, m
+                           ));
+  CAMLreturn(floatstar_mat_to_value(ptr, dim1, dim2));
+}
+
 CAMLprim value cublas_mul(value v1, value v2){
   CAMLparam2 (v1, v2);
   int len = value_len(v1);
@@ -309,7 +333,7 @@ CAMLprim value cublas_array_of_vect(value vect){
 CAMLprim value cublas_array_of_matrix(value transposed, value mat){
   CAMLparam2 (transposed, mat);
   CAMLlocal1(caml_array);
-  int transposed_ = Val_bool(transposed);
+  int transposed_ = Bool_val(transposed);
   float* ptr = value_to_floatstar_mat(mat);
   int d1 = value_dim1(mat);
   int d2 = value_dim2(mat);
@@ -320,8 +344,8 @@ CAMLprim value cublas_array_of_matrix(value transposed, value mat){
   int i;
   for (i = 0; i < d1; ++i){
     Store_field(caml_array, i, transposed_ ?
-                array_of_ptr(cdata+ i, d2, d1, 0) :
-                array_of_ptr(cdata+ i * d2, d2, 1, 0)
+                array_of_ptr(cdata+ i * d2, d2, 1, 0) :
+                array_of_ptr(cdata+ i, d2, d1, 0)
                 );
   }
   free(cdata);

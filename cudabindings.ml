@@ -20,6 +20,9 @@ external cublas_matrix_matrix_incr : cublas_matrix -> cublas_matrix -> float -> 
 external cublas_matrix_vector_mul :
  cublas_matrix -> cublas_vector -> float -> float -> int -> cublas_vector = "cublas_mul_matrix_vector"
   
+external cublas_vectors_as_matrix_mul :
+ cublas_vector -> cublas_vector -> cublas_matrix = "cublas_mul_vects_as_matrix"
+  
 external cublas_matrix_matrix_mul :
  cublas_matrix -> cublas_matrix -> float -> int -> cublas_matrix = "cublas_mul_matrix"
   
@@ -34,6 +37,7 @@ let () =
     Gc.full_major ();
     cublas_shutdown ();
   )
+
 
 let trans_of_int trans = match trans with
   | `N -> 0
@@ -57,10 +61,11 @@ module Mat = struct
   type t = cublas_matrix
   let add m1 m2 = let m3 = cublas_matrix_copy m2 in cublas_matrix_matrix_incr m1 m3 1.; m3
   let copy = cublas_matrix_copy
-  let of_array_transpose = cublas_matrix_of_array false
-  let of_array = cublas_matrix_of_array true
-  let to_array = cublas_array_of_matrix true
-  let init x y f = Array.init x (fun x -> Array.init y (fun y -> f y x)) |> of_array
+  let of_array_transpose = cublas_matrix_of_array true
+  let of_array = cublas_matrix_of_array false
+  let to_array = cublas_array_of_matrix false
+  let init x y f = Array.init x (fun x -> Array.init y (fun y -> f x y)) |> of_array
+  let init_cols x y f = Array.init x (fun x -> Array.init y (fun y -> f y x)) |> of_array
   let map f vec = Array.map (Array.map f) (to_array vec) |> of_array
 end
 

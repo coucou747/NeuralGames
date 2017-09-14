@@ -97,9 +97,8 @@ module GamePlay (G : Game) (F : Neural.Activation) : sig
   val negamax_player : int -> fplayer
 end = struct
   type fplayer = G.state -> G.player -> G.movement  
-  
-  module N = Neural.Make(F)(LacamlMat)
-                                        
+
+  module N = Neural.Make(F)(CuMat)                                     
   type airef = N.neural ref
 
   let random_player state player =

@@ -20,7 +20,13 @@ module Test (L : LinearOperations) = struct
 
   let h = L.multiply21 ma a
   let i = L.multiply12 g ma
-  let md = L.scalar_vects_to_map e b
+  let md = L.scalar_vects_to_map e g
+  let me = L.map2 (fun f -> f +. 1.) md
+
+
+  let t = [| [| 1.; 2.; 3.|]; [| 4.; 5.; 6.|] |]
+  let mh = L.from_array2_transposee t
+  let mi = L.from_array2 t
 end
 
 module Unit (A : LinearOperations) (B : LinearOperations) = struct
@@ -61,6 +67,7 @@ module Unit (A : LinearOperations) (B : LinearOperations) = struct
     vec_eq "init" TA.a TB.a;
     vec_eq "init" TA.b TB.b;
     vec_eq "times" TA.c TB.c;
+    vec_eq "diff" TA.d TB.d;
     A.scalar TA.a 2.;
     B.scalar TB.a 2.;
     vec_eq "Scalar" TA.a TB.a;
@@ -77,6 +84,9 @@ module Unit (A : LinearOperations) (B : LinearOperations) = struct
     mat_eq "init_matrix" TA.me TB.me;
     mat_eq "init_matrix" TA.mf TB.mf;
     mat_eq "matrix multiply" TA.mg TB.mg;
+    mat_eq "map2" TA.me TB.me;
+    mat_eq "from_array2 transposee" TA.mh TB.mh;
+    mat_eq "from_array2" TA.mi TB.mi;
     
 end
 
