@@ -76,7 +76,7 @@ module type Game = sig
   val floats_of_state : player -> state -> float list
 end
 
-module GamePlay (G : Game) (F : Neural.Activation) : sig
+module GamePlay (G : Game) (F : Neural.Activation)  (L:LinearOperations) : sig
   type fplayer
   type airef
   type stats_t
@@ -98,7 +98,7 @@ module GamePlay (G : Game) (F : Neural.Activation) : sig
 end = struct
   type fplayer = G.state -> G.player -> G.movement  
 
-  module N = Neural.Make(F)(CuMat)                                     
+  module N = Neural.Make(F)(L)                                     
   type airef = N.neural ref
 
   let random_player state player =
