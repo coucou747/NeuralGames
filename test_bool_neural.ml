@@ -9,7 +9,8 @@ On fait apprendre 30 réseaux pendant 1000 itérations.
 
 *)
 
-module N = Neural.Make(Tanh)
+module L = ArrayAbstraction.LacamlMat
+module N = Neural.Make(Tanh)(L)
 open Tanh
     
 let () =
@@ -37,8 +38,8 @@ let () =
     let examples = List.map (fun (a, b) -> Array.of_list a, Array.of_list b) examples in
     let w = N.learns error_channel 1000 learning_rate w examples in
     Format.fprintf error_channel "@\n@\n";
-    let inputs = rand_float_tab 0 ninputs in
-    let tab, data = N.computes w inputs in
+    let inputs = L.init ninputs (fun _ -> rfloat ()) in
+    let tab, data = N.compute w inputs in
     let debug_channel = open_out ("xor_"^(string_of_int i)^".dot") |> Format.formatter_of_out_channel in
     N.debug debug_channel inputs data
   done

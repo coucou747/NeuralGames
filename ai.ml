@@ -168,6 +168,7 @@ end = struct
     let move, _score =  move_score_ai_player refw state player in move
     
   let learn learning_rate refw =
+    let expected lr score values datas = N.expected lr (L.from_array [| score |]) values datas in
     let rec f state player =
       let other_player = G.other_player player in
       if (Random.int 2) = 0 then
@@ -180,22 +181,22 @@ end = struct
       else
         begin
           let move, score =  move_score_ai_player refw state player in
-          let inputs_t0 = inputs other_player state in
-          let values_t0, datas_t0 = N.compute (!refw) inputs_t0 in
+          let inputs_t0 = inputs other_player state |> L.from_array in
           let ns, _ = G.play state player move in
           let tdend score_t0 score_t1 =
-              refw := N.expected learning_rate [| score_t0 |] values_t0 datas_t0;
-              let inputs_t1 = inputs player ns in
+              let values_t0, datas_t0 = N.compute (!refw) inputs_t0 in
+              refw := expected learning_rate score_t0 values_t0 datas_t0;
+              let inputs_t1 = inputs player ns  |> L.from_array in
               let values_t1, datas_t1 = N.compute (!refw) inputs_t1 in
-              refw := N.expected learning_rate [| score_t1 |] values_t1 datas_t1;
+              refw := expected learning_rate score_t1 values_t1 datas_t1;
               learning_rate
           in
-          if G.won ns player then tdend F.min F.max 
+          if G.won ns player then tdend F.min F.max
           else if G.draw ns player then tdend F.neutral F.neutral
           else
             let learning_rate = (f ns other_player) *. 0.5 in
             let values_t0, datas_t0 = N.compute (!refw) inputs_t0 in
-            refw := N.expected learning_rate [| F.invert score |] values_t0 datas_t0;
+            refw := expected learning_rate (F.invert score) values_t0 datas_t0;
             learning_rate
         end
     in ignore (f (G.state0 ()) G.p1)

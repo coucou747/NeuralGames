@@ -1,5 +1,7 @@
 open ArrayAbstraction
 
+let rfloat () = (Random.float 2.) -. 1.
+
 module type Activation = sig
   type t = float -> float
   val f : float -> float
@@ -14,8 +16,6 @@ end
 
 module Sigmoid : Activation = struct
   type t = float -> float
-  let rfloat () = (Random.float 2.) -. 1.
-
   let f x = 1. /. (1. +. exp (-. x))
   let f' x =
     let fx = f x in
@@ -32,8 +32,6 @@ end
 
 module Tanh : Activation = struct
   type t = float -> float
-  let rfloat () = (Random.float 2.) -. 1.
-
   let f x = tanh x
   let f' x = 1. -. (tanh x) *. (tanh x)
   let rand_float nn n = 
@@ -69,11 +67,12 @@ module Make (F : Activation) (L:LinearOperations) : sig
 
   type neural
   type datat
+
   val make : int -> int list -> neural
-  val compute : neural -> float array -> float array * datat
+  val compute : neural -> L.vector -> L.vector * datat
   val computes : neural -> float array array -> float array array
   val debug : Format.formatter -> L.vector -> datat -> unit
-  val expected : float -> float array -> float array -> datat -> neural
+  val expected : float -> L.vector -> L.vector -> datat -> neural
   val learns : Format.formatter -> int -> float -> neural -> (float array * float array) list -> neural
   val save : Format.formatter -> neural -> unit
   val load : Scanf.Scanning.in_channel -> neural
@@ -154,17 +153,7 @@ end = struct
         let gerror =  L.squaresumdiff values expectedv in
         sum_error +. gerror, expected learning_rate expectedv values datas
       ) (0., weights) examples
-
-
-  let expected learningRate e values datas =
-    let e = L.from_array e in
-    let values = L.from_array values in
-    expected learningRate e values datas 
-
-  let compute layers input =
-    let a, b = compute layers (L.from_array input) in
-    L.to_array a, b
-    
+ 
   let computes layers input =
     let a = computes layers (L.from_array2_transposee input) in
     L.to_array2 a

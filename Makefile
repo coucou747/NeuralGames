@@ -1,5 +1,5 @@
 
-all: tictactoe.native puissance4.native test_bool_neural.native
+all: tictactoe.native puissance4.native test_bool_neural.native test_linear.native
 
 %.native: *.ml *.c
 	ocamlbuild -use-ocamlfind -pkgs bigarray,lacaml $*.native

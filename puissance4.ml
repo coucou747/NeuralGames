@@ -101,7 +101,7 @@ module P4State : Game = struct
     List.flatten (List.map (Remplissage.floats_of_cell player) (List.flatten li))
 
 
-  let size_neural = [40; 20; 20; 20]
+  let size_neural = [400; 400; 400; 400]
                     
   let alpha0 = -.2.
   let beta0 = 2.
