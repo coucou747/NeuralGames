@@ -15,8 +15,8 @@ module Make (G : Ai.Game)  (F : Activation.Activation) = struct
       mutable stats : bool;
     }
   
-  let instantiate specs default name (module M: LinearOperations) =
-    let module GP = (Ai.GamePlay(G)(F)(M)) in
+  let instantiate specs default name (module M: LinearOperationsFunctor) =
+    let module GP = (Ai.GamePlay(G)(F)(M(F))) in
     let main () =
       let ai_from_filename s = GP.make_ai_player (GP.load_ai (Scanf.Scanning.from_channel (open_in s))) in
       let progname = Sys.argv.(0) in
@@ -92,14 +92,14 @@ module Make (G : Ai.Game)  (F : Activation.Activation) = struct
 
 let () =
   let arraysimpls = [
-    "Lacaml", (module LacamlMat : LinearOperations);
-    "CuMat", (module CuMat : LinearOperations);
-    "MLArray", (module MLArray : LinearOperations)] in
+    "Lacaml", (module LacamlMat : LinearOperationsFunctor);
+    "CuMat", (module CuMat : LinearOperationsFunctor);
+    "MLArray", (module MLArray : LinearOperationsFunctor)] in
   Random.self_init ();
   let specs = List.map (fun (name, _) apply ->
       "-use-"^name, Arg.Unit (apply name), "Enable the "^name^" array abstraction"
     ) arraysimpls in
-  let gps = List.mapi (fun i (name, (module M : LinearOperations)) ->
+  let gps = List.mapi (fun i (name, (module M : LinearOperationsFunctor)) ->
       instantiate specs (i = 0) name (module M))  arraysimpls in
   ignore (List.fold_left (fun done_ f -> if not done_ then f () else true) false gps)
     

@@ -8,10 +8,10 @@ module Layer (F : Activation) (L:LinearOperations) = struct
     | [] -> []
   let compute inputs weights =
     let sums = L.multiply21 weights inputs in
-    sums, L.map F.f sums
+    sums, L.mapf sums
   let computes inputs weights =
     let sums = L.multiply weights inputs in
-    sums, L.map2 F.f sums
+    sums, L.map2f sums
 end
 
 let addbiais input =
@@ -92,7 +92,7 @@ end = struct
 
   let expected learningRate expected values datas =
     let fixlay (weights, error) (sums, values, prev_values, layerw) =
-      let fprimesums = L.map F.f' sums in
+      let fprimesums = L.mapf' sums in
       
       let delta = L.v_times fprimesums error in
       L.scalar delta learningRate;

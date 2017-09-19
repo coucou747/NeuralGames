@@ -11,8 +11,9 @@ module type LinearOperations = sig
   val multiply : matrix -> matrix -> matrix
   val init : int -> (int -> float) -> vector
   val init_matrix : int -> int -> (int -> int -> float) -> matrix
-  val map : (float -> float) -> vector -> vector
-  val map2 : (float -> float) -> matrix -> matrix
+  val mapf : vector -> vector
+  val mapf' : vector -> vector
+  val map2f : matrix -> matrix
   val squaresumdiff : vector -> vector -> float
   val scalar_vects_to_map : vector -> vector -> matrix
   val from_array : float array -> vector
@@ -21,7 +22,7 @@ module type LinearOperations = sig
   val from_array2_transposee : float array array -> matrix
   val to_array2 : matrix -> float array array
 end
-module MLArray : LinearOperations = struct
+module MLArray (A : Activation.Activation) : LinearOperations = struct
   type vector = float array
   type matrix = float array array
 
@@ -74,8 +75,9 @@ module MLArray : LinearOperations = struct
   
   let scalar_vects_to_map v1 v2 = Array.map (fun d -> Array.map (( *.) d) v2) v1
 
-  let map = Array.map
-  let map2 f m = Array.map (Array.map f) m
+  let mapf = Array.map A.f
+  let mapf' = Array.map A.f'
+  let map2f m = Array.map (Array.map A.f) m
 
   let from_array x = x
   let to_array x = x
@@ -89,7 +91,7 @@ module MLArray : LinearOperations = struct
   let squaresumdiff v1 v2 = Array.map2 (-.) v1 v2  |> Array.fold_left (fun a b -> a +. b *. b) 0.
 end
 
-module LacamlMat: LinearOperations = struct
+module LacamlMat (A : Activation.Activation) : LinearOperations = struct
   open Lacaml.S
   type vector = vec
   type matrix = mat
@@ -106,8 +108,9 @@ module LacamlMat: LinearOperations = struct
   
   let init n f = Vec.init n (fun i -> f (i - 1))
   let init_matrix x y f = Mat.init_cols x y (fun x y -> f (y - 1) (x - 1))
-  let map f vec = Vec.map f vec
-  let map2 f mat = Mat.map f mat
+  let mapf v = Vec.map A.f v
+  let mapf' v = Vec.map A.f' v
+  let map2f mat = Mat.map A.f mat
   let squaresumdiff v1 v2 = Vec.ssqr_diff v1 v2
   let scalar_vects_to_map v1 v2 =
     Array.map (fun d ->
@@ -122,7 +125,7 @@ module LacamlMat: LinearOperations = struct
   let to_array2 x = Mat.to_array x
 end
 
-module CuMat = struct
+module CuMat (A : Activation.Activation) : LinearOperations = struct
   open Cudabindings
 
   type vector = Vec.t
@@ -140,8 +143,9 @@ module CuMat = struct
   
   let init = Vec.init
   let init_matrix x y f = Mat.init_cols x y f
-  let map f vec = Vec.map f vec
-  let map2 f mat = Mat.map f mat
+  let mapf = A.cuda_f
+  let mapf' = A.cuda_f'
+  let map2f = A.cuda_mat_f
   let squaresumdiff v1 v2 = Vec.ssqr_diff v1 v2
   let scalar_vects_to_map v1 v2 = cublas_vectors_as_matrix_mul v1 v2
     
@@ -152,3 +156,5 @@ module CuMat = struct
   let to_array2 x = Mat.to_array x
   
 end
+
+module type LinearOperationsFunctor = functor (A : Activation.Activation) -> LinearOperations

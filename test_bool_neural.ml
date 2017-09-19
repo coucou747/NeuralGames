@@ -10,7 +10,7 @@ On fait apprendre 30 réseaux pendant 1000 itérations.
 
 *)
 
-module L = ArrayAbstraction.LacamlMat
+module L = ArrayAbstraction.LacamlMat(Tanh)
 module N = Neural.Make(Tanh)(L)
 open Tanh
     
