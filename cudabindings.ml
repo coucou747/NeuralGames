@@ -30,6 +30,8 @@ external cublas_vect_scale : cublas_vector -> float -> unit = "cublas_scale"
 external cublas_vect_mul : cublas_vector -> cublas_vector -> cublas_vector = "cublas_mul"
 
 external cublas_ssqr : cublas_vector -> float = "cublas_ssqr";;
+external cublas_vec_tanh : cublas_vector -> cublas_vector = "cublas_vec_tanh";;
+external cublas_vec_sigmoid : cublas_vector -> cublas_vector = "cublas_vec_sigmoid";;
 
 let () =
   cublas_init ();
@@ -55,6 +57,8 @@ module Vec = struct
   let scal f v = cublas_vect_scale v f
   let copy = cublas_vect_copy
   let ssqr_diff v1 v2 = sub v1 v2 |> cublas_ssqr
+  let tanH = cublas_vec_tanh
+    let sigmoid = cublas_vec_sigmoid
 end
 
 module Mat = struct

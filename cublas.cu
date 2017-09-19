@@ -111,6 +111,12 @@ __global__ void f_tanh(int n, float * x, float * y)
   if (i < n) y[i] = tanh(x[i]);
 }
 
+__global__ void f_sigmoid(int n, float * x, float * y)
+{
+  int i = blockIdx.x*blockDim.x + threadIdx.x;
+  if (i < n) y[i] = 1 / (1 + exp (- x[i]));
+}
+
 extern "C"{
 
 CAMLprim value cublas_scale(value vect, value caml_alpha){
@@ -377,7 +383,7 @@ CAMLprim value cublas_shutdown(value unit){
   CAMLreturn(Val_unit);
 }
 
-CAMLprim value cublas_vect_tanh(value v){
+CAMLprim value cublas_vec_tanh(value v){
   CAMLparam1(v);
   int len = value_len(v);
   float* ptr;
@@ -386,6 +392,18 @@ CAMLprim value cublas_vect_tanh(value v){
   int n_blocks = len/block_size + (len%block_size == 0 ? 0:1);
   f_tanh <<< n_blocks, block_size >>> (len, value_to_floatstar(v), ptr);
 
+  cudaDeviceSynchronize();
+  CAMLreturn(floatstar_to_value(ptr, len));
+}
+
+CAMLprim value cublas_vec_sigmoid(value v){
+  CAMLparam1(v);
+  int len = value_len(v);
+  float* ptr;
+  check_status(cublasAlloc( len, sizeof(float), (void**)&ptr));
+  int block_size = 4;
+  int n_blocks = len/block_size + (len%block_size == 0 ? 0:1);
+  f_sigmoid <<< n_blocks, block_size >>> (len, value_to_floatstar(v), ptr);
   cudaDeviceSynchronize();
   CAMLreturn(floatstar_to_value(ptr, len));
 }
