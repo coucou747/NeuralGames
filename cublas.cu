@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 
+#include <cuda.h>
 #include <cuda_runtime.h>
 #include <cublas.h>
 #include <cublas_v2.h>
@@ -104,6 +105,14 @@ value floatstar_mat_to_value(float* ptr, int dim1, int dim2){
   CAMLreturn(v);
 }
 
+__global__ void f_tanh(int n, float * x, float * y)
+{
+  int i = blockIdx.x*blockDim.x + threadIdx.x;
+  if (i < n) y[i] = tanh(x[i]);
+}
+
+extern "C"{
+
 CAMLprim value cublas_scale(value vect, value caml_alpha){
   CAMLparam1 (vect);
   float* ptr = value_to_floatstar(vect);
@@ -118,7 +127,7 @@ CAMLprim value cublas_vect_of_array(value caml_array){
   float* ptr;
   mlsize_t len = caml_array_length(caml_array);
   check_status(cublasAlloc( len, sizeof(float), (void**)&ptr));
-  float *cdata = malloc (len * sizeof(float));
+  float *cdata = (float*) malloc (len * sizeof(float));
   int i;
   for (i = 0; i < len; ++i)
     cdata[i] = Double_field(caml_array, i);
@@ -135,7 +144,7 @@ CAMLprim value cublas_matrix_of_array(value transposed, value caml_array){
   mlsize_t dim2 = caml_array_length(Field(caml_array, 0));
   int len = dim1 * dim2;
   check_status(cublasAlloc( len, sizeof(float), (void**)&ptr));
-  float *cdata = malloc (len * sizeof(float));
+  float *cdata = (float*) malloc (len * sizeof(float));
   int i, j;
   for (i = 0; i < dim1; ++i){
     tmp_tab = Field(caml_array, i);
@@ -326,7 +335,7 @@ CAMLprim value cublas_array_of_vect(value vect){
   CAMLparam1 (vect);
   float* ptr = value_to_floatstar(vect);
   int len = value_len(vect);
-  float *cdata = malloc (len * sizeof(float));
+  float *cdata = (float*) malloc (len * sizeof(float));
   check_status(cublasGetVector(len, sizeof(float), ptr, 1, cdata, 1));
   CAMLreturn( array_of_ptr(cdata, len, 1, 1));
 }
@@ -338,7 +347,7 @@ CAMLprim value cublas_array_of_matrix(value transposed, value mat){
   int d1 = value_dim1(mat);
   int d2 = value_dim2(mat);
   int len = d1 * d2;
-  float *cdata = malloc (len * sizeof(float));
+  float *cdata = (float*) malloc (len * sizeof(float));
   check_status(cublasGetVector(len, sizeof(float), ptr, 1, cdata, 1));
   caml_array = caml_alloc(d1, 0);
   int i;
@@ -366,4 +375,19 @@ CAMLprim value cublas_shutdown(value unit){
   check_status(cublasDestroy(handle));
   check_status(cublasShutdown());
   CAMLreturn(Val_unit);
+}
+
+CAMLprim value cublas_vect_tanh(value v){
+  CAMLparam1(v);
+  int len = value_len(v);
+  float* ptr;
+  check_status(cublasAlloc( len, sizeof(float), (void**)&ptr));
+  int block_size = 4;
+  int n_blocks = len/block_size + (len%block_size == 0 ? 0:1);
+  f_tanh <<< n_blocks, block_size >>> (len, value_to_floatstar(v), ptr);
+
+  cudaDeviceSynchronize();
+  CAMLreturn(floatstar_to_value(ptr, len));
+}
+
 }
