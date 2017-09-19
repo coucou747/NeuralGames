@@ -76,7 +76,7 @@ module type Game = sig
   val floats_of_state : player -> state -> float list
 end
 
-module GamePlay (G : Game) (F : Neural.Activation)  (L:LinearOperations) : sig
+module GamePlay (G : Game) (F : Activation.Activation)  (L:LinearOperations) : sig
   type fplayer
   type airef
   type stats_t

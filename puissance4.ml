@@ -109,4 +109,4 @@ module P4State : Game = struct
 
 end
 
-module Main = Arguments.Make(P4State)(Neural.Tanh)
+module Main = Arguments.Make(P4State)(Activation.Tanh)

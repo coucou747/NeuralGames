@@ -95,4 +95,4 @@ module TicState : Game = struct
 
 end
 
-module Main = Arguments.Make(TicState)(Neural.Tanh)
+module Main = Arguments.Make(TicState)(Activation.Tanh)

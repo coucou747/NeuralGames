@@ -1,5 +1,6 @@
 
 open Neural
+open Activation
 (*
 make xor_1.dot.png error_during_learn_xor.plot.png
 

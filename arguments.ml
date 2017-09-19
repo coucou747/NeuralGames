@@ -1,7 +1,7 @@
 open ArrayAbstraction
 open StdAddon
 
-module Make (G : Ai.Game)  (F : Neural.Activation) = struct
+module Make (G : Ai.Game)  (F : Activation.Activation) = struct
 
   type 'gp_fplayer o =
     {
