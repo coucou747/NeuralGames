@@ -399,20 +399,19 @@ CAMLprim value cublas_shutdown(value unit){
   check_status(cublasShutdown());
   CAMLreturn(Val_unit);
 }
-
-CAMLprim value cublas_vec_tanh(value v){
+  
+CAMLprim value cublas_generic_vec(value v, void (*funptr)(int, float*, float*) ){
   CAMLparam1(v);
   int len = value_len(v);
   float* ptr;
   check_status(cublasAlloc( len, sizeof(float), (void**)&ptr));
   int block_size = 4;
   int n_blocks = len/block_size + (len%block_size == 0 ? 0:1);
-  f_tanh <<< n_blocks, block_size >>> (len, value_to_floatstar(v), ptr);
+  funptr <<< n_blocks, block_size >>> (len, value_to_floatstar(v), ptr);
   cudaDeviceSynchronize();
   CAMLreturn(floatstar_to_value(ptr, len));
 }
-
-CAMLprim value cublas_mat_tanh(value v){
+CAMLprim value cublas_generic_mat(value v, void (*funptr)(int, float*, float*) ){
   CAMLparam1(v);
   int d1 = value_dim1(v), d2 = value_dim2(v);
   int len = d1 * d2;
@@ -420,58 +419,38 @@ CAMLprim value cublas_mat_tanh(value v){
   check_status(cublasAlloc( len, sizeof(float), (void**)&ptr));
   int block_size = 4;
   int n_blocks = len/block_size + (len%block_size == 0 ? 0:1);
-  f_tanh <<< n_blocks, block_size >>> (len, value_to_floatstar(v), ptr);
+  funptr <<< n_blocks, block_size >>> (len, value_to_floatstar(v), ptr);
   cudaDeviceSynchronize();
   CAMLreturn(floatstar_mat_to_value(ptr, d1, d2));
+}
+CAMLprim value cublas_vec_tanh(value v){
+  CAMLparam1(v);
+  CAMLreturn( cublas_generic_vec(v, f_tanh) );
+}
+
+CAMLprim value cublas_mat_tanh(value v){
+  CAMLparam1(v);
+  CAMLreturn( cublas_generic_mat(v, f_tanh) );
 }
 
 
 CAMLprim value cublas_vec_tanh2(value v){
   CAMLparam1(v);
-  int len = value_len(v);
-  float* ptr;
-  check_status(cublasAlloc( len, sizeof(float), (void**)&ptr));
-  int block_size = 4;
-  int n_blocks = len/block_size + (len%block_size == 0 ? 0:1);
-  f_tanh2 <<< n_blocks, block_size >>> (len, value_to_floatstar(v), ptr);
-  cudaDeviceSynchronize();
-  CAMLreturn(floatstar_to_value(ptr, len));
+  CAMLreturn( cublas_generic_vec(v, f_tanh2) );
 }
 
 CAMLprim value cublas_vec_sigmoid(value v){
   CAMLparam1(v);
-  int len = value_len(v);
-  float* ptr;
-  check_status(cublasAlloc( len, sizeof(float), (void**)&ptr));
-  int block_size = 4;
-  int n_blocks = len/block_size + (len%block_size == 0 ? 0:1);
-  f_sigmoid <<< n_blocks, block_size >>> (len, value_to_floatstar(v), ptr);
-  cudaDeviceSynchronize();
-  CAMLreturn(floatstar_to_value(ptr, len));
+  CAMLreturn( cublas_generic_vec(v, f_sigmoid) );
 }
 CAMLprim value cublas_mat_sigmoid(value v){
   CAMLparam1(v);
-  int d1 = value_dim1(v), d2 = value_dim2(v);
-  int len = d1 * d2;
-  float* ptr;
-  check_status(cublasAlloc( len, sizeof(float), (void**)&ptr));
-  int block_size = 4;
-  int n_blocks = len/block_size + (len%block_size == 0 ? 0:1);
-  f_sigmoid <<< n_blocks, block_size >>> (len, value_to_floatstar(v), ptr);
-  cudaDeviceSynchronize();
-  CAMLreturn(floatstar_mat_to_value(ptr, d1, d2));
+  CAMLreturn( cublas_generic_mat(v, f_sigmoid) );
 }
 
 CAMLprim value cublas_vec_sigmoid2(value v){
   CAMLparam1(v);
-  int len = value_len(v);
-  float* ptr;
-  check_status(cublasAlloc( len, sizeof(float), (void**)&ptr));
-  int block_size = 4;
-  int n_blocks = len/block_size + (len%block_size == 0 ? 0:1);
-  f_sigmoid2 <<< n_blocks, block_size >>> (len, value_to_floatstar(v), ptr);
-  cudaDeviceSynchronize();
-  CAMLreturn(floatstar_to_value(ptr, len));
+  CAMLreturn( cublas_generic_vec(v, f_sigmoid2) );
 }
 
 }
