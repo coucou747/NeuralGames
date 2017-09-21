@@ -12,6 +12,7 @@ module Make (G : Ai.Game)  (F : Activation.Activation) = struct
       mutable learn_iterations : int;
       mutable learn_steps : int;
       mutable learn_ratio : float;
+      mutable training_percent_random : int;
       mutable stats : bool;
     }
   
@@ -29,6 +30,7 @@ module Make (G : Ai.Game)  (F : Activation.Activation) = struct
         learn_iterations = 0;
         learn_steps = 0;
         learn_ratio = 0.1;
+        training_percent_random = 50;
         stats = false
       } in
       let spec = List.append
@@ -52,6 +54,7 @@ module Make (G : Ai.Game)  (F : Activation.Activation) = struct
         "-alphabeta-player1", Arg.Int (fun i -> opt.player1 <- GP.negamax_player i), "first player is a negamax of depth n";
         "-alphabeta-player2", Arg.Int (fun i -> opt.player2 <- GP.negamax_player i), "second player is a negamax of depth n";
         "-training-ratio", Arg.Float (fun f -> opt.learn_ratio <- f), "sets the learning ratio";
+        "-training-random-percent", Arg.Int (fun i -> opt.training_percent_random <- i), "sets the percent of random moves for learning operations";
         "-stats", Arg.Unit (fun () -> opt.stats <- true), "compute only statistics";
       ] in
       Arg.current := 0;
@@ -81,7 +84,7 @@ module Make (G : Ai.Game)  (F : Activation.Activation) = struct
               in
               for i = 1 to opt.learn_iterations do
                 for j = 1 to opt.learn_steps do
-                  GP.learn opt.learn_ratio ai;
+                  GP.learn opt.training_percent_random opt.learn_ratio ai;
                 done;
                 let s = GP.stats (GP.make_ai_player ai) GP.random_player in
                 Format.printf "%d : %a@\n%!" i GP.pp_stats s

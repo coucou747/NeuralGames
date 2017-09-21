@@ -86,7 +86,7 @@ module GamePlay (G : Game) (F : Activation.Activation)  (L:LinearOperations) : s
 
   val create_ai : int list -> airef
   val make_ai_player : airef -> fplayer
-  val learn : float -> airef -> unit
+  val learn : int -> float -> airef -> unit
 
   val save_ai : Format.formatter -> airef -> unit
   val load_ai : Scanf.Scanning.in_channel -> airef
@@ -167,11 +167,11 @@ end = struct
   let make_ai_player refw state player =
     let move, _score =  move_score_ai_player refw state player in move
     
-  let learn learning_rate refw =
+  let learn training_percent_random learning_rate refw =
     let expected lr score values datas = N.expected lr (L.from_array [| score |]) values datas in
     let rec f state player =
       let other_player = G.other_player player in
-      if (Random.int 2) = 0 then
+      if (Random.int 100) < training_percent_random then
         (* on force l'IA a explorer d'autres morceaux de l'arbre que les "meilleurs" coups *)
         let move = random_player state player in
         let ns, _ = G.play state player move in
