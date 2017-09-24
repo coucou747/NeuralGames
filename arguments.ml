@@ -13,6 +13,7 @@ module Make (G : Ai.Game)  (F : Activation.Activation) = struct
       mutable learn_steps : int;
       mutable learn_ratio : float;
       mutable training_percent_random : int;
+      mutable database_size : int;
       mutable stats : bool;
     }
   
@@ -31,6 +32,7 @@ module Make (G : Ai.Game)  (F : Activation.Activation) = struct
         learn_steps = 0;
         learn_ratio = 0.1;
         training_percent_random = 50;
+        database_size = -1;
         stats = false
       } in
       let spec = List.append
@@ -51,6 +53,7 @@ module Make (G : Ai.Game)  (F : Activation.Activation) = struct
         "-training-file", Arg.String (fun s -> opt.file_to_train <- Some s), "sets the file for the neural network training";
         "-training-iterations", Arg.Int (fun i -> opt.learn_iterations <- i), "sets the number of training loop";
         "-training-steps", Arg.Int (fun i -> opt.learn_steps <- i), "sets the number of training steps (before stats)";
+        "-database-size", Arg.Int (fun i -> opt.database_size <- i), "sets the size of the database for endgame training";
         "-alphabeta-player1", Arg.Int (fun i -> opt.player1 <- GP.negamax_player i), "first player is a negamax of depth n";
         "-alphabeta-player2", Arg.Int (fun i -> opt.player2 <- GP.negamax_player i), "second player is a negamax of depth n";
         "-training-ratio", Arg.Float (fun f -> opt.learn_ratio <- f), "sets the learning ratio";
@@ -82,13 +85,22 @@ module Make (G : Ai.Game)  (F : Activation.Activation) = struct
                   Format.printf "Create New AI";
                   GP.create_ai G.size_neural
               in
-              for i = 1 to opt.learn_iterations do
-                for j = 1 to opt.learn_steps do
-                  GP.learn opt.training_percent_random opt.learn_ratio ai;
+              if opt.database_size > 0 then begin
+                if opt.learn_iterations = 0 then
+                  Format.printf "use the option -training-iterations to train the database.@\n%!"
+                else begin
+                  Format.printf "training the neural network for endgames with a database of size : %d and %d iterations@\n%!" opt.database_size opt.learn_iterations;
+                  GP.learn_endgames ~error_channel:Format.std_formatter opt.learn_iterations opt.database_size opt.learn_ratio ai
+                end
+              end
+              else
+                for i = 1 to opt.learn_iterations do
+                  for j = 1 to opt.learn_steps do
+                    GP.learn opt.training_percent_random opt.learn_ratio ai;
+                  done;
+                  let s = GP.stats (GP.make_ai_player ai) GP.random_player in
+                  Format.printf "%d : %a@\n%!" i GP.pp_stats s
                 done;
-                let s = GP.stats (GP.make_ai_player ai) GP.random_player in
-                Format.printf "%d : %a@\n%!" i GP.pp_stats s
-              done;
               GP.save_ai (Format.formatter_of_out_channel (open_out ai_file)) ai
         end; true)
     in main;;

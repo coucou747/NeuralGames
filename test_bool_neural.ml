@@ -37,7 +37,7 @@ let () =
   for i = 1 to 30 do
     let w = N.make ninputs [4; 4; noutput] in
     let examples = List.map (fun (a, b) -> Array.of_list a, Array.of_list b) examples in
-    let w = N.learns error_channel 1000 learning_rate w examples in
+    let w = N.learns ~error_channel 1000 learning_rate w examples in
     Format.fprintf error_channel "@\n@\n";
     let inputs = L.init ninputs (fun _ -> rfloat ()) in
     let tab, data = N.compute w inputs in

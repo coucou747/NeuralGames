@@ -55,6 +55,8 @@ module type Game = sig
   type state
   type movement
   type undo_t
+
+  val learn_draw : bool
   
   val state0 : unit -> state
   val won : state -> player ->  bool
@@ -87,6 +89,7 @@ module GamePlay (G : Game) (F : Activation.Activation)  (L:LinearOperations) : s
   val create_ai : int list -> airef
   val make_ai_player : airef -> fplayer
   val learn : int -> float -> airef -> unit
+  val learn_endgames : ?error_channel:Format.formatter -> int -> int -> float -> airef -> unit
 
   val save_ai : Format.formatter -> airef -> unit
   val load_ai : Scanf.Scanning.in_channel -> airef
@@ -200,6 +203,26 @@ end = struct
             learning_rate
         end
     in ignore (f (G.state0 ()) G.p1)
+
+  let learn_endgames ?error_channel nlearn db_size learning_rate refw =
+    let rec find_end n state player tolearn =
+      let other_player = G.other_player player in
+      let move = random_player state player in
+      let ns, _ = G.play state player move in
+      let endgame score0 score1 =
+          let inputs_t0 = inputs other_player state in
+          let inputs_t1 = inputs player ns in
+          database n ((inputs_t0, [|score0|])::(inputs_t1, [|score1|] )::tolearn) in
+      if G.won ns player then endgame F.min F.max
+      else if G.draw ns player then if G.learn_draw then endgame F.neutral F.neutral else tolearn
+      else find_end n ns other_player tolearn
+    and database n tolearn =
+      if n = 0 then tolearn
+      else find_end (n - 1) (G.state0 ()) G.p1 tolearn
+    in
+    let db = database db_size [] in
+    refw  := N.learns ?error_channel nlearn learning_rate !refw db
+
     
   let play ?(silent=false) fplayer1 fplayer2 =
     let s0 = G.state0 () in

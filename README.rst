@@ -30,8 +30,14 @@ Compile
 Pour compiler le jeu de tictactoe, faire::
   make tictactoe.native
 
+Utilisation
+-----------
+  
 training ::
     ./tictactoe.native -training-file tictactoe_nn.dat -training-iterations 1000 -training-steps 100 -training-ratio 0.1
+
+endgame training ::
+    ./tictactoe.native -training-file tictactoe_nn.dat -training-ratio 0.05 -use-CuMat -database-size 128 -training-iterations 1000
 
 
 mesure contre l'alphabeta::

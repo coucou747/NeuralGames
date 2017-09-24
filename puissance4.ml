@@ -8,6 +8,8 @@ module P4State : Game = struct
     mutable height : int;
     content : Remplissage.cell array
   }
+
+  let learn_draw = true
   
   type player = Remplissage.player
   let pp_player = Remplissage.pp_player

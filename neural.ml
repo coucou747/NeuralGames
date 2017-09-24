@@ -30,7 +30,7 @@ module Make (F : Activation) (L:LinearOperations) : sig
   val computes : neural -> float array array -> float array array
   val debug : Format.formatter -> L.vector -> datat -> unit
   val expected : float -> L.vector -> L.vector -> datat -> neural
-  val learns : Format.formatter -> int -> float -> neural -> (float array * float array) list -> neural
+  val learns : ?error_channel:Format.formatter -> int -> float -> neural -> (float array * float array) list -> neural
   val save : Format.formatter -> neural -> unit
   val load : Scanf.Scanning.in_channel -> neural
     
@@ -115,17 +115,20 @@ end = struct
     let a = computes layers (L.from_array2_transposee input) in
     L.to_array2 a
   
-  let rec learns error_channel n learning_rate weights examples =
+  let rec learns ?error_channel n learning_rate weights examples =
     if n = 0 then weights
     else
       let error, weights = learn learning_rate weights examples in
-      Format.fprintf error_channel "%f@\n" error;
-      learns error_channel (n - 1) learning_rate weights examples
+      begin match error_channel with
+        | Some error_channel -> Format.fprintf error_channel "%f@\n%!" error
+        | None -> ()
+      end;
+      learns ?error_channel (n - 1) learning_rate weights examples
 
 
-  let learns error_channel n learning_rate weights examples =
+  let learns ?error_channel n learning_rate weights examples =
     let examples = List.map (fun (a, b) -> L.from_array a, L.from_array b) examples in
-    learns error_channel n learning_rate weights examples
+    learns ?error_channel n learning_rate weights examples
 
   let save f w =
     let w = List.map L.to_array2 w in
