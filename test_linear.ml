@@ -14,15 +14,24 @@ module Test (L : LinearOperations) = struct
   let ma = L.init_matrix 5 7 (fun x y -> float_of_int (x * 100 + y))
   let mb = L.init_matrix 5 7 (fun x y -> float_of_int (x * 10 + y * y * 15))
   let mc = L.add ma mb
-
+  let mc' = L.diff_mat ma mb
+  let mc'' = L.m_times ma mb
+  
   let me = L.init_matrix 2 4 (fun x y -> float_of_int (x * 10 + y))
+  let me' = L.init_matrix 4 2 (fun x y -> float_of_int (x * 10 + y))
   let mf = L.init_matrix 4 5 (fun x y -> float_of_int (x * 10 + y))
+  let mf' = L.init_matrix 5 4 (fun x y -> float_of_int (x * 10 + y))
   let mg = L.multiply me mf
+  let mg' = L.multiply_t me' mf
+  let mg'' = L.multiply_nt me mf'
 
+  let score = L.squaresumdiff_mat ma mb
+  
   let h = L.multiply21 ma a
   let i = L.multiply12 g ma
   let md = L.scalar_vects_to_map e g
   let me = L.map2f md
+  let me' = L.map2f' md
 
 
   let t = [| [| 1.; 2.; 3.|]; [| 4.; 5.; 6.|] |]
@@ -80,10 +89,18 @@ module Unit (A : LinearOperations) (B : LinearOperations) = struct
     vec_eq "mapf" TA.e TB.e;
     vec_eq "mapf'" TA.e' TB.e';
     float_eq "squaresumdiff" TA.f TB.f;
+    float_eq "squaresumdiff_mat" TA.score TB.score;
     vec_eq "init" TA.g TB.g;
     mat_eq "init_matrix" TA.ma TB.ma;
     mat_eq "init_matrix" TA.mb TB.mb;
     mat_eq "add" TA.mc TB.mc;
+    mat_eq "diff" TA.mc' TB.mc';
+    mat_eq "m_times" TA.mc'' TB.mc'';
+
+    A.scalar_mat TA.mc'' 2.;
+    B.scalar_mat TB.mc'' 2.;
+    mat_eq "scalar" TA.mc'' TB.mc'';
+    
 
     vec_eq "multiply21" TA.h TB.h;
     vec_eq "multiply12" TA.i TB.i;
@@ -91,7 +108,10 @@ module Unit (A : LinearOperations) (B : LinearOperations) = struct
     mat_eq "init_matrix" TA.me TB.me;
     mat_eq "init_matrix" TA.mf TB.mf;
     mat_eq "matrix multiply" TA.mg TB.mg;
-    mat_eq "map2" TA.me TB.me;
+    mat_eq "matrix multiply_t" TA.mg' TB.mg';
+    mat_eq "matrix multiply_nt" TA.mg'' TB.mg'';
+    mat_eq "map2f" TA.me TB.me;
+    mat_eq "map2f'" TA.me' TB.me';
     mat_eq "from_array2 transposee" TA.mh TB.mh;
     mat_eq "from_array2" TA.mi TB.mi;
     
