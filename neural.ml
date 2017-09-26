@@ -84,12 +84,14 @@ end = struct
         (output, (sums, output, input, layerw)::li)
       ) (input, []) layers
       
-  let computes layers inputs =
-    List.fold_left (fun input layerw ->
+  let computes_with_datas layers inputs =
+    List.fold_left (fun (input, li) layerw ->
         let sums, output = Layer.computes input layerw in
-        output
-      ) (inputs) layers
+        (output, (sums, output, input, layerw)::li)
+      ) (inputs, []) layers
 
+  let computes layers inputs = fst (computes_with_datas layers inputs)
+    
   let expected learningRate expected values datas =
     let fixlay (weights, error) (sums, values, prev_values, layerw) =
       let fprimesums = L.mapf' sums in
@@ -104,31 +106,49 @@ end = struct
     let nw, _ = List.fold_left fixlay ([], error) datas
     in nw
 
-  let learn learning_rate weights examples =
-    List.fold_left (fun (sum_error, weights) (inputs, expectedv) ->
-        let values, datas = compute weights inputs in
-        let gerror =  L.squaresumdiff values expectedv in
-        sum_error +. gerror, expected learning_rate expectedv values datas
-      ) (0., weights) examples
+  let debug_mat f m =
+    let m = L.to_array2 m in
+    Format.fprintf f "%dx%d" (Array.length m) (Array.length m.(0))
+  
+  let learn learning_rate layers inputs expecteds =
+    (* Gc.full_major (); *)
+    Gc.minor ();
+    let values, datas = computes_with_datas layers inputs in
+    let fixlay (weights, error) (sums, values, prev_values, layerw) =
+      let fprimesums = L.map2f' sums in
+      let delta = L.m_times fprimesums error in
+      L.scalar_mat delta learning_rate;
+      let changes = L.multiply_nt delta prev_values in
+      let prev_error = L.multiply_t layerw delta in
+      (L.add changes layerw):: weights, prev_error
+    in
+    let error = L.diff_mat expecteds values in
+    let nw, _ = List.fold_left fixlay ([], error) datas
+    in L.squaresumdiff_mat expecteds values, nw
  
   let computes layers input =
     let a = computes layers (L.from_array2_transposee input) in
     L.to_array2 a
   
-  let rec learns ?error_channel n learning_rate weights examples =
+  let rec learns ?error_channel n learning_rate weights inputs expecteds =
     if n = 0 then weights
     else
-      let error, weights = learn learning_rate weights examples in
+      let error, weights = learn learning_rate weights inputs expecteds in
       begin match error_channel with
         | Some error_channel -> Format.fprintf error_channel "%f@\n%!" error
         | None -> ()
       end;
-      learns ?error_channel (n - 1) learning_rate weights examples
+      learns ?error_channel (n - 1) learning_rate weights inputs expecteds
 
 
   let learns ?error_channel n learning_rate weights examples =
-    let examples = List.map (fun (a, b) -> L.from_array a, L.from_array b) examples in
-    learns ?error_channel n learning_rate weights examples
+
+    let inputs, expecteds = List.split examples in
+    let inputs = Array.of_list inputs in
+    let expecteds = Array.of_list expecteds in
+    let inputs = L.from_array2_transposee inputs in
+    let expecteds = L.from_array2_transposee expecteds in
+    learns ?error_channel n learning_rate weights inputs expecteds
 
   let save f w =
     let w = List.map L.to_array2 w in

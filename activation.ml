@@ -7,6 +7,7 @@ module type Activation = sig
   val cuda_f : Cudabindings.Vec.t -> Cudabindings.Vec.t
   val cuda_mat_f : Cudabindings.Mat.t -> Cudabindings.Mat.t
   val cuda_f' : Cudabindings.Vec.t -> Cudabindings.Vec.t
+  val cuda_mat_f' : Cudabindings.Mat.t -> Cudabindings.Mat.t
   val rand_float : int -> int -> unit -> float
   val convert01 : float -> float
   val invert : float -> float
@@ -24,6 +25,7 @@ module Sigmoid : Activation = struct
   let cuda_f = Cudabindings.Vec.sigmoid
   let cuda_f' = Cudabindings.Vec.sigmoid'
   let cuda_mat_f = Cudabindings.Mat.sigmoid
+  let cuda_mat_f' = Cudabindings.Mat.sigmoid'
   let rand_float nn n =
     let s =  sqrt (1. /. float_of_int (nn + n)) in
     (fun () -> 4. *. rfloat () *. s)
@@ -41,6 +43,7 @@ module Tanh : Activation = struct
   let cuda_f = Cudabindings.Vec.tanH
   let cuda_f' = Cudabindings.Vec.tanH'
   let cuda_mat_f = Cudabindings.Mat.tanH
+  let cuda_mat_f' = Cudabindings.Mat.tanH'
   let rand_float nn n = 
     let s =  sqrt (1. /. float_of_int (nn + n)) in
     (fun () -> 4. *. rfloat () *. s)

@@ -27,9 +27,12 @@ external cublas_matrix_matrix_mul :
  cublas_matrix -> cublas_matrix -> float -> int -> cublas_matrix = "cublas_mul_matrix"
   
 external cublas_vect_scale : cublas_vector -> float -> unit = "cublas_scale"
+external cublas_mat_scale : cublas_matrix -> float -> unit = "cublas_mat_scale"
 external cublas_vect_mul : cublas_vector -> cublas_vector -> cublas_vector = "cublas_mul"
+external cublas_mat_mul : cublas_matrix -> cublas_matrix -> cublas_matrix = "cublas_mat_mul"
 
 external cublas_ssqr : cublas_vector -> float = "cublas_ssqr";;
+external cublas_ssqr_mat : cublas_matrix -> float = "cublas_ssqr_mat";;
 external cublas_vec_tanh : cublas_vector -> cublas_vector = "cublas_vec_tanh";;
 external cublas_vec_sigmoid : cublas_vector -> cublas_vector = "cublas_vec_sigmoid";;
 
@@ -38,6 +41,9 @@ external cublas_mat_sigmoid : cublas_matrix -> cublas_matrix = "cublas_mat_sigmo
 
 external cublas_vec_tanh' : cublas_vector -> cublas_vector = "cublas_vec_tanh2";;
 external cublas_vec_sigmoid' : cublas_vector -> cublas_vector = "cublas_vec_sigmoid2";;
+
+external cublas_mat_tanh' : cublas_matrix -> cublas_matrix = "cublas_mat_tanh2";;
+external cublas_mat_sigmoid' : cublas_matrix -> cublas_matrix = "cublas_mat_sigmoid2";;
 
 let () =
   cublas_init ();
@@ -71,18 +77,28 @@ end
 module Mat = struct
   type t = cublas_matrix
   let add m1 m2 = let m3 = cublas_matrix_copy m2 in cublas_matrix_matrix_incr m1 m3 1.; m3
+  let sub m1 m2 = let m3 = cublas_matrix_copy m1 in cublas_matrix_matrix_incr m2 m3 (-1.); m3
+  let mul = cublas_mat_mul
   let copy = cublas_matrix_copy
   let of_array_transpose = cublas_matrix_of_array true
   let of_array = cublas_matrix_of_array false
   let to_array = cublas_array_of_matrix false
   let init x y f = Array.init x (fun x -> Array.init y (fun y -> f x y)) |> of_array
   let init_cols x y f = Array.init x (fun x -> Array.init y (fun y -> f y x)) |> of_array
+  let scal f v = cublas_mat_scale v f
   let map f vec = Array.map (Array.map f) (to_array vec) |> of_array
   let sigmoid = cublas_mat_sigmoid
+  let sigmoid' = cublas_mat_sigmoid'
+  let ssqr_diff v1 v2 = sub v1 v2 |> cublas_ssqr_mat
   let tanH = cublas_mat_tanh
+  let tanH' = cublas_mat_tanh'
 end
 
-let gemm a b = cublas_matrix_matrix_mul a b 1. 0
+let gemm ?(transa=`N) ?(transb=`N) a b = 
+  let transa = trans_of_int transa in
+  let transb = trans_of_int transb in
+  cublas_matrix_matrix_mul a b 1. (transa + transb * 8)
+    
 let gemv ?(trans=`N) a b =
   let trans = trans_of_int trans in
   cublas_matrix_vector_mul a b 1. 0. trans

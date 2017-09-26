@@ -89,7 +89,7 @@ static struct custom_operations cublas_mat__ops =
 value floatstar_to_value(float* ptr, int len){
   CAMLparam0();
   CAMLlocal1(v);
-  v = caml_alloc_custom(&cublas_vect__ops, sizeof(struct cublas_vect),1000, 1000);
+  v = caml_alloc_custom(&cublas_vect__ops, sizeof(struct cublas_vect),100, 1000);
   ((struct cublas_vect *)Data_custom_val(v))->len = len;
   ((struct cublas_vect *)Data_custom_val(v))->f = ptr;
   CAMLreturn(v);
@@ -98,7 +98,7 @@ value floatstar_to_value(float* ptr, int len){
 value floatstar_mat_to_value(float* ptr, int dim1, int dim2){
   CAMLparam0();
   CAMLlocal1(v);
-  v = caml_alloc_custom(&cublas_mat__ops, sizeof(struct cublas_mat),1000, 1000);
+  v = caml_alloc_custom(&cublas_mat__ops, sizeof(struct cublas_mat),100, 1000);
   ((struct cublas_mat *)Data_custom_val(v))->dim1 = dim1;
   ((struct cublas_mat *)Data_custom_val(v))->dim2 = dim2;
   ((struct cublas_mat *)Data_custom_val(v))->f = ptr;
@@ -140,6 +140,15 @@ CAMLprim value cublas_scale(value vect, value caml_alpha){
   CAMLparam1 (vect);
   float* ptr = value_to_floatstar(vect);
   mlsize_t len = value_len(vect);
+  float alpha = Double_val(caml_alpha);
+  check_status(cublasSscal(handle, len, &alpha, ptr, 1));
+  CAMLreturn(Val_unit);
+}
+
+CAMLprim value cublas_mat_scale(value vect, value caml_alpha){
+  CAMLparam1 (vect);
+  float* ptr = value_to_floatstar_mat(vect);
+  mlsize_t len = value_dim1(vect) * value_dim2(vect);
   float alpha = Double_val(caml_alpha);
   check_status(cublasSscal(handle, len, &alpha, ptr, 1));
   CAMLreturn(Val_unit);
@@ -215,7 +224,7 @@ CAMLprim value cublas_mul_matrix(value v1, value v2, value alpha, value trans){
 
   int trans_i = Int_val(trans);
   cublasOperation_t ta = int2trans(trans_i);
-  cublasOperation_t tb = int2trans(trans_i << 3);
+  cublasOperation_t tb = int2trans(trans_i >> 3);
 
   int dim1 = value_dim1(v1), dim2 = value_dim2(v1);
   int dim3 = value_dim1(v2), dim4 = value_dim2(v2);
@@ -226,16 +235,25 @@ CAMLprim value cublas_mul_matrix(value v1, value v2, value alpha, value trans){
   float* ptr;
 
   int m = ta == CUBLAS_OP_T ? dim2 : dim1;
+  int k2 = ta == CUBLAS_OP_T ? dim1 : dim2;
   int n = tb == CUBLAS_OP_T ? dim3 : dim4;
   int k = tb == CUBLAS_OP_T ? dim4 : dim3;
+
+  if (k != k2){
+    printf("FAILED : %d=%d !! %dx%d x %dx%d (m=%d, n=%d, k=%d) : t1 %d, t2 %d %d %d\n",
+           k, k2,
+           dim1, dim2, dim3, dim4, m, n, k,
+           ta, tb, CUBLAS_OP_T, CUBLAS_OP_N);
+    exit(1);
+  }
   
   int len = m * n;
   check_status(cublasAlloc( len, sizeof(float), (void**)&ptr)); 
   check_status(cublasSgemm(handle, ta, tb,
                            m, n, k,
                            &alpha_f,
-                           value_to_floatstar_mat(v1), m,
-                           value_to_floatstar_mat(v2), k,
+                           value_to_floatstar_mat(v1), dim1,
+                           value_to_floatstar_mat(v2), dim3,
                            &beta_f,
                            ptr, m
                            ));
@@ -312,12 +330,37 @@ check_status(cublasDotEx (handle, len,
   CAMLreturn(floatstar_to_value(ptr, len));
 }
 
+CAMLprim value cublas_mat_mul(value v1, value v2){
+  CAMLparam2 (v1, v2);
+  int d1 = value_dim1(v1);
+  int d2 = value_dim2(v1);
+  int len = d1 * d2;
+  float* ptr;
+  check_status(cublasAlloc( len, sizeof(float), (void**)&ptr));
+  check_status(cublasSdgmm( handle, CUBLAS_SIDE_LEFT,
+              len, 1,
+              value_to_floatstar_mat(v1), len,
+              value_to_floatstar_mat(v2) , 1,
+              ptr, len));
+  CAMLreturn(floatstar_mat_to_value(ptr, d1, d2));
+}
+
 CAMLprim value cublas_ssqr(value vect){
   CAMLparam1(vect);
   CAMLlocal1(ml_f);
   float result;
   float* x = value_to_floatstar(vect);
   check_status(cublasDotEx (handle, value_len(vect), x, CUDA_R_32F, 1, x, CUDA_R_32F, 1, &result, CUDA_R_32F, CUDA_R_32F));
+  ml_f = caml_copy_double(result);
+  CAMLreturn(ml_f);
+}
+
+CAMLprim value cublas_ssqr_mat(value vect){
+  CAMLparam1(vect);
+  CAMLlocal1(ml_f);
+  float result;
+  float* x = value_to_floatstar_mat(vect);
+  check_status(cublasDotEx (handle, value_dim1(vect) * value_dim2(vect), x, CUDA_R_32F, 1, x, CUDA_R_32F, 1, &result, CUDA_R_32F, CUDA_R_32F));
   ml_f = caml_copy_double(result);
   CAMLreturn(ml_f);
 }
@@ -438,6 +481,11 @@ CAMLprim value cublas_vec_tanh2(value v){
   CAMLparam1(v);
   CAMLreturn( cublas_generic_vec(v, f_tanh2) );
 }
+CAMLprim value cublas_mat_tanh2(value v){
+  CAMLparam1(v);
+  CAMLreturn( cublas_generic_mat(v, f_tanh2) );
+}
+
 
 CAMLprim value cublas_vec_sigmoid(value v){
   CAMLparam1(v);
@@ -451,6 +499,10 @@ CAMLprim value cublas_mat_sigmoid(value v){
 CAMLprim value cublas_vec_sigmoid2(value v){
   CAMLparam1(v);
   CAMLreturn( cublas_generic_vec(v, f_sigmoid2) );
+}
+CAMLprim value cublas_mat_sigmoid2(value v){
+  CAMLparam1(v);
+  CAMLreturn( cublas_generic_mat(v, f_sigmoid2) );
 }
 
 }
