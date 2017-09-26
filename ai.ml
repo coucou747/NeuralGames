@@ -171,7 +171,7 @@ end = struct
     let move, _score =  move_score_ai_player refw state player in move
     
   let learn training_percent_random learning_rate refw =
-    let expected lr score values datas = N.expected lr (L.from_array [| score |]) values datas in
+    let expected lr score values datas = N.expected lr (L.V.from_array [| score |]) values datas in
     let rec f state player =
       let other_player = G.other_player player in
       if (Random.int 100) < training_percent_random then
@@ -184,12 +184,12 @@ end = struct
       else
         begin
           let move, score =  move_score_ai_player refw state player in
-          let inputs_t0 = inputs other_player state |> L.from_array in
+          let inputs_t0 = inputs other_player state |> L.V.from_array in
           let ns, _ = G.play state player move in
           let tdend score_t0 score_t1 =
               let values_t0, datas_t0 = N.compute (!refw) inputs_t0 in
               refw := expected learning_rate score_t0 values_t0 datas_t0;
-              let inputs_t1 = inputs player ns  |> L.from_array in
+              let inputs_t1 = inputs player ns  |> L.V.from_array in
               let values_t1, datas_t1 = N.compute (!refw) inputs_t1 in
               refw := expected learning_rate score_t1 values_t1 datas_t1;
               learning_rate

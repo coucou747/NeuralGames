@@ -2,16 +2,16 @@ open ArrayAbstraction
 open Activation
 
 module Layer (F : Activation) (L:LinearOperations) = struct
-  let make_layer inputs n = let f = F.rand_float n inputs in L.init_matrix n inputs (fun _ _ -> f ())
+  let make_layer inputs n = let f = F.rand_float n inputs in L.M.init n inputs (fun _ _ -> f ())
   let rec init_weights ninputs = function
     | hd::tl -> make_layer ninputs hd :: init_weights hd tl
     | [] -> []
   let compute inputs weights =
     let sums = L.multiply21 weights inputs in
-    sums, L.mapf sums
+    sums, L.V.mapf sums
   let computes inputs weights =
     let sums = L.multiply weights inputs in
-    sums, L.map2f sums
+    sums, L.M.mapf sums
 end
 
 let addbiais input =
@@ -26,10 +26,10 @@ module Make (F : Activation) (L:LinearOperations) : sig
   type datat
 
   val make : int -> int list -> neural
-  val compute : neural -> L.vector -> L.vector * datat
+  val compute : neural -> L.V.t -> L.V.t * datat
   val computes : neural -> float array array -> float array array
-  val debug : Format.formatter -> L.vector -> datat -> unit
-  val expected : float -> L.vector -> L.vector -> datat -> neural
+  val debug : Format.formatter -> L.V.t -> datat -> unit
+  val expected : float -> L.V.t -> L.V.t -> datat -> neural
   val learns : ?error_channel:Format.formatter -> int -> float -> neural -> (float array * float array) list -> neural
   val save : Format.formatter -> neural -> unit
   val load : Scanf.Scanning.in_channel -> neural
@@ -40,13 +40,13 @@ end = struct
 
   let make = Layer.init_weights
   
-  type neural = L.matrix list
-  type datat = (L.vector * L.vector * L.vector * L.matrix) list
+  type neural = L.M.t list
+  type datat = (L.V.t * L.V.t * L.V.t * L.M.t) list
 
   let debug debug_channel input datas =
-    let input = L.to_array input in
+    let input = L.V.to_array input in
     let datas = List.map (fun (a, b, c, d) ->
-        L.to_array a, L.to_array b, L.to_array c, L.to_array2 d
+        L.V.to_array a, L.V.to_array b, L.V.to_array c, L.M.to_array d
       ) datas in
     Format.fprintf debug_channel "@[<v 2>digraph {@\nsplines=line;@[<v 2>@\nsubgraph cluster_input {";
     Array.iteri (fun i v ->
@@ -94,20 +94,20 @@ end = struct
     
   let expected learningRate expected values datas =
     let fixlay (weights, error) (sums, values, prev_values, layerw) =
-      let fprimesums = L.mapf' sums in
+      let fprimesums = L.V.mapf' sums in
       
-      let delta = L.v_times fprimesums error in
-      L.scalar delta learningRate;
+      let delta = L.V.times fprimesums error in
+      L.V.scalar delta learningRate;
       let changes = L.scalar_vects_to_map delta prev_values in
       let prev_error = L.multiply12 delta layerw in
-      (L.add changes layerw):: weights, prev_error
+      (L.M.add changes layerw):: weights, prev_error
     in
-    let error = L.diff expected values in
+    let error = L.V.diff expected values in
     let nw, _ = List.fold_left fixlay ([], error) datas
     in nw
 
   let debug_mat f m =
-    let m = L.to_array2 m in
+    let m = L.M.to_array m in
     Format.fprintf f "%dx%d" (Array.length m) (Array.length m.(0))
   
   let learn learning_rate layers inputs expecteds =
@@ -115,20 +115,20 @@ end = struct
     Gc.minor ();
     let values, datas = computes_with_datas layers inputs in
     let fixlay (weights, error) (sums, values, prev_values, layerw) =
-      let fprimesums = L.map2f' sums in
-      let delta = L.m_times fprimesums error in
-      L.scalar_mat delta learning_rate;
+      let fprimesums = L.M.mapf' sums in
+      let delta = L.M.times fprimesums error in
+      L.M.scalar delta learning_rate;
       let changes = L.multiply_nt delta prev_values in
       let prev_error = L.multiply_t layerw delta in
-      (L.add changes layerw):: weights, prev_error
+      (L.M.add changes layerw):: weights, prev_error
     in
-    let error = L.diff_mat expecteds values in
+    let error = L.M.diff expecteds values in
     let nw, _ = List.fold_left fixlay ([], error) datas
-    in L.squaresumdiff_mat expecteds values, nw
+    in L.M.squaresumdiff expecteds values, nw
  
   let computes layers input =
-    let a = computes layers (L.from_array2_transposee input) in
-    L.to_array2 a
+    let a = computes layers (L.M.from_array_transposee input) in
+    L.M.to_array a
   
   let rec learns ?error_channel n learning_rate weights inputs expecteds =
     if n = 0 then weights
@@ -146,12 +146,12 @@ end = struct
     let inputs, expecteds = List.split examples in
     let inputs = Array.of_list inputs in
     let expecteds = Array.of_list expecteds in
-    let inputs = L.from_array2_transposee inputs in
-    let expecteds = L.from_array2_transposee expecteds in
+    let inputs = L.M.from_array_transposee inputs in
+    let expecteds = L.M.from_array_transposee expecteds in
     learns ?error_channel n learning_rate weights inputs expecteds
 
   let save f w =
-    let w = List.map L.to_array2 w in
+    let w = List.map L.M.to_array w in
     Format.fprintf f "%d@\n" (List.length w);
     List.iter (fun layer ->
         Format.fprintf f "%d %d " (Array.length layer) (Array.length layer.(0));
@@ -170,6 +170,6 @@ end = struct
                     Array.init cols (fun _ ->
                         Scanf.bscanf f "%Lx " Int64.float_of_bits
                       )))))
-    in List.map L.from_array2 (Array.to_list t)
+    in List.map L.M.from_array (Array.to_list t)
 
 end

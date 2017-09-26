@@ -39,7 +39,7 @@ let () =
     let examples = List.map (fun (a, b) -> Array.of_list a, Array.of_list b) examples in
     let w = N.learns ~error_channel 1000 learning_rate w examples in
     Format.fprintf error_channel "@\n@\n";
-    let inputs = L.init ninputs (fun _ -> rfloat ()) in
+    let inputs = L.V.init ninputs (fun _ -> rfloat ()) in
     let tab, data = N.compute w inputs in
     let debug_channel = open_out ("xor_"^(string_of_int i)^".dot") |> Format.formatter_of_out_channel in
     N.debug debug_channel inputs data
