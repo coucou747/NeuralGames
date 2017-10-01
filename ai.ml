@@ -89,6 +89,7 @@ module GamePlay (G : Game) (F : Activation.Activation)  (L:LinearOperations) : s
   val create_ai : int list -> airef
   val make_ai_player : airef -> fplayer
   val learn : int -> float -> airef -> unit
+  val multilearn ?nlearn:int -> ?ngames:int -> int -> float -> airef -> unit
   val learn_endgames : ?error_channel:Format.formatter -> int -> int -> float -> airef -> unit
 
   val save_ai : Format.formatter -> airef -> unit
@@ -112,9 +113,8 @@ end = struct
       
   let stdin_player state player = G.input Scanf.Scanning.stdin
   
-  let inputs player state =
-    Array.of_list
-    ( 1. :: (G.floats_of_state player state  |> List.map F.convert01))
+  let inputs_li player state = 1. :: (G.floats_of_state player state  |> List.map F.convert01)
+  let inputs player state = Array.of_list (inputs_li player state)
 
   let create_ai layers =
     let ninputs = Array.length (inputs G.p1 (G.state0 ())) in
@@ -203,6 +203,61 @@ end = struct
             learning_rate
         end
     in ignore (f (G.state0 ()) G.p1)
+
+  let multilearn ?(nlearn=100) ?(ngames=10) training_percent_random learning_rate
+      refw =
+    let rec f state player =
+      let other_player = G.other_player player in
+      if (Random.int 100) < training_percent_random then
+        let move = random_player state player in
+        let ns, _ = G.play state player move in
+        if G.won ns player || G.draw ns player then false, 0., 0, [], [], []
+        else let _, end_score, p, inputs_tmp, scores_tmp, db = f ns other_player in
+          false, end_score, p, inputs_tmp, scores_tmp, db
+      else
+        begin
+          let move, score =  move_score_ai_player refw state player in
+          let inputs_t0 = inputs other_player state in
+          let ns, _ = G.play state player move in
+          let tdend score_t0 score_t1 =
+              let inputs_t1 = inputs player ns in
+              true, score_t0, 10, [], [], [inputs_t0, [|score_t0|]; inputs_t1, [|score_t1|]]
+          in
+          if G.won ns player then tdend F.min F.max
+          else if G.draw ns player then tdend F.neutral F.neutral
+          else
+            let learn, end_score, p, inputs_tmp, scores_tmp, db = f ns other_player in
+            let iscore = F.invert end_score in
+            if learn then
+              let score = (F.invert score) /. 2. in
+              let l = 1. /. (float_of_int p) in
+              true, iscore, p+1, (inputs_t0 :: inputs_tmp), ((l, score)::scores_tmp), db
+            else learn, iscore, p, inputs_tmp, scores_tmp, db
+        end
+    in
+    let rec mkonedb inputs scores db n = match n, db with (* let's build a db of "n" games*)
+      | 0, _::_ ->
+        begin match inputs with
+          | [] -> db
+          | _ ->
+            let inputs = Array.of_list inputs in
+            let values = N.computes (!refw) inputs in
+            let dbaddon = List.mapi (fun i (l, score) ->
+                let score = values.(0).(i) *. (1. -. l) +. score *. l in
+                inputs.(i), [|score|]
+              ) scores in
+            List.rev_append db dbaddon
+        end
+      | n, _ ->
+        let _, _, _, inputs', scores', db' = f (G.state0 ()) G.p1 in
+        mkonedb
+          (List.rev_append inputs' inputs)
+          (List.rev_append scores' scores)
+          (List.rev_append db' db)
+          (max 0 (n - 1))
+    in let db = mkonedb [] [] [] ngames in
+    if db != [] then
+      refw  := N.learns nlearn learning_rate !refw db
 
   let learn_endgames ?error_channel nlearn db_size learning_rate refw =
     let rec find_end n state player tolearn =
