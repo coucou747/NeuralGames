@@ -89,7 +89,7 @@ module GamePlay (G : Game) (F : Activation.Activation)  (L:LinearOperations) : s
   val create_ai : int list -> airef
   val make_ai_player : airef -> fplayer
   val learn : int -> float -> airef -> unit
-  val multilearn ?nlearn:int -> ?ngames:int -> int -> float -> airef -> unit
+  val multilearn : ?nlearn:int -> ?ngames:int -> int -> float -> airef -> unit
   val learn_endgames : ?error_channel:Format.formatter -> int -> int -> float -> airef -> unit
 
   val save_ai : Format.formatter -> airef -> unit
@@ -211,9 +211,9 @@ end = struct
       if (Random.int 100) < training_percent_random then
         let move = random_player state player in
         let ns, _ = G.play state player move in
-        if G.won ns player || G.draw ns player then false, 0., 0, [], [], []
-        else let _, end_score, p, inputs_tmp, scores_tmp, db = f ns other_player in
-          false, end_score, p, inputs_tmp, scores_tmp, db
+        if G.won ns player || G.draw ns player then false, 0, [], [], []
+        else let _, p, inputs_tmp, scores_tmp, db = f ns other_player in
+          false, p, inputs_tmp, scores_tmp, db
       else
         begin
           let move, score =  move_score_ai_player refw state player in
@@ -221,18 +221,17 @@ end = struct
           let ns, _ = G.play state player move in
           let tdend score_t0 score_t1 =
               let inputs_t1 = inputs player ns in
-              true, score_t0, 10, [], [], [inputs_t0, [|score_t0|]; inputs_t1, [|score_t1|]]
+              true, 10, [], [], [inputs_t0, [|score_t0|]; inputs_t1, [|score_t1|]]
           in
           if G.won ns player then tdend F.min F.max
           else if G.draw ns player then tdend F.neutral F.neutral
           else
-            let learn, end_score, p, inputs_tmp, scores_tmp, db = f ns other_player in
-            let iscore = F.invert end_score in
+            let learn, p, inputs_tmp, scores_tmp, db = f ns other_player in
             if learn then
               let score = (F.invert score) /. 2. in
               let l = 1. /. (float_of_int p) in
-              true, iscore, p+1, (inputs_t0 :: inputs_tmp), ((l, score)::scores_tmp), db
-            else learn, iscore, p, inputs_tmp, scores_tmp, db
+              true, p+1, (inputs_t0 :: inputs_tmp), ((l, score)::scores_tmp), db
+            else learn, p, inputs_tmp, scores_tmp, db
         end
     in
     let rec mkonedb inputs scores db n = match n, db with (* let's build a db of "n" games*)
@@ -249,7 +248,7 @@ end = struct
             List.rev_append db dbaddon
         end
       | n, _ ->
-        let _, _, _, inputs', scores', db' = f (G.state0 ()) G.p1 in
+        let _, _, inputs', scores', db' = f (G.state0 ()) G.p1 in
         mkonedb
           (List.rev_append inputs' inputs)
           (List.rev_append scores' scores)

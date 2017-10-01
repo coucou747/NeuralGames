@@ -14,7 +14,11 @@ module Make (G : Ai.Game)  (F : Activation.Activation) = struct
       mutable learn_ratio : float;
       mutable training_percent_random : int;
       mutable database_size : int;
+      (* methods *)
       mutable stats : bool;
+      mutable play : bool;
+      mutable multi_train_nlearn : int;
+      mutable multi_train_ngames : int;
     }
   
   let instantiate specs default name (module M: LinearOperationsFunctor) =
@@ -33,17 +37,15 @@ module Make (G : Ai.Game)  (F : Activation.Activation) = struct
         learn_ratio = 0.1;
         training_percent_random = 50;
         database_size = -1;
-        stats = false
+        stats = false;
+        play = false;
+        multi_train_nlearn = 0;
+        multi_train_ngames = 0;
       } in
       let spec = List.append
           (List.map (fun spec -> spec (fun n ->
-               Format.printf "%S = %S ? %b@\n" n name ( String.equal n name );
-               if String.equal n name then fun () ->
-                 Format.printf "USE %S@\n" name;
-                 opt.available <- true
-               else fun () ->
-                 Format.printf "DONT USE %S@\n" name;
-                 opt.available <- false)) specs)
+               if String.equal n name then fun () -> opt.available <- true
+               else fun () -> opt.available <- false)) specs)
         [
         "-use-"^name, Arg.Unit (fun () -> opt.available <- true), "Enable the "^name^" array abstraction";
         "-stdin-player1", Arg.Unit (fun () -> opt.player1 <- GP.stdin_player), "first player plays from the standard input";
@@ -59,22 +61,22 @@ module Make (G : Ai.Game)  (F : Activation.Activation) = struct
         "-training-ratio", Arg.Float (fun f -> opt.learn_ratio <- f), "sets the learning ratio";
         "-training-random-percent", Arg.Int (fun i -> opt.training_percent_random <- i), "sets the percent of random moves for learning operations";
         "-stats", Arg.Unit (fun () -> opt.stats <- true), "compute only statistics";
+        "-multi-train-nlearn", Arg.Int (fun i -> opt.multi_train_nlearn <- i), "sets the number of learning session in case of a multi learn";
+        "-multi-train-ngames", Arg.Int (fun i -> opt.multi_train_ngames <- i), "sets the number of games used to create the database in case of a multi learn";
+        
       ] in
       Arg.current := 0;
       Arg.parse spec (fun f -> Format.fprintf Format.err_formatter "What to do with %S@\n" f) descr;
-      if not opt.available then
-        begin
-          Format.printf "don't use %s implementation@\n" name;
-          false
-        end
+      if not opt.available then false
       else (begin
-          Format.printf "Use %s implementation@\n" name;
-          if opt.stats then
+          if opt.stats then begin
             let s = GP.stats opt.player1 opt.player2 in
             Format.printf "%a@\n%!" GP.pp_stats s
-          else
+          end;
+          if opt.play then begin
             let winner = GP.play opt.player1 opt.player2 in
-            Format.printf "%a@\n%!" (pp_option G.pp_player) winner;
+            Format.printf "%a@\n%!" (pp_option G.pp_player) winner
+          end;
             match opt.file_to_train with
             | None -> ()
             | Some ai_file ->
@@ -96,7 +98,12 @@ module Make (G : Ai.Game)  (F : Activation.Activation) = struct
               else
                 for i = 1 to opt.learn_iterations do
                   for j = 1 to opt.learn_steps do
-                    GP.learn opt.training_percent_random opt.learn_ratio ai;
+                    if opt.multi_train_nlearn > 0 then
+                      GP.multilearn
+                        ~nlearn:opt.multi_train_nlearn
+                        ~ngames:opt.multi_train_ngames
+                        opt.training_percent_random opt.learn_ratio ai
+                    else GP.learn opt.training_percent_random opt.learn_ratio ai
                   done;
                   let s = GP.stats (GP.make_ai_player ai) GP.random_player in
                   Format.printf "%d : %a@\n%!" i GP.pp_stats s
