@@ -43,6 +43,7 @@ module TicState : Game = struct
     state, coords
     
   let undo state player coords =
+    assert (state.(coords) = Remplissage.cell_of_player player);
     state.(coords) <- Remplissage.empty;
     state
 
@@ -89,7 +90,7 @@ module TicState : Game = struct
       (fun li -> List.flatten li |> List.map (Remplissage.floats_of_cell player) |> List.flatten)
       all_li |> select
 
-  let size_neural = [36; 18; 18]
+  let size_neural = [360]
   
   let alpha0 = -.2.
   let beta0 = 2.

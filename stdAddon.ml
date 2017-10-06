@@ -25,3 +25,8 @@ let shuffle li =
     li.(n) <- tmp
   done;
   Array.to_list li
+
+let fprintf_ error fmt =
+  match error with
+  | Some f -> Format.fprintf f fmt
+  | None -> Format.ifprintf Format.std_formatter fmt

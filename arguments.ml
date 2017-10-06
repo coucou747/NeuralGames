@@ -106,7 +106,7 @@ module Make (G : Ai.Game)  (F : Activation.Activation) = struct
                     else GP.learn opt.training_percent_random opt.learn_ratio ai
                   done;
                   let s = GP.stats (GP.make_ai_player ai) GP.random_player in
-                  Format.printf "%d : %a@\n%!" i GP.pp_stats s
+                  Format.printf "%4d : %a@\n%!" i GP.pp_stats s
                 done;
               GP.save_ai (Format.formatter_of_out_channel (open_out ai_file)) ai
         end; true)
