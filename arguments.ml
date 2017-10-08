@@ -19,6 +19,7 @@ module Make (G : Ai.Game)  (F : Activation.Activation) = struct
       mutable play : bool;
       mutable multi_train_nlearn : int;
       mutable multi_train_ngames : int;
+      mutable training_from : int;
     }
   
   let instantiate specs default name (module M: LinearOperationsFunctor) =
@@ -41,6 +42,7 @@ module Make (G : Ai.Game)  (F : Activation.Activation) = struct
         play = false;
         multi_train_nlearn = 0;
         multi_train_ngames = 0;
+        training_from = 1;
       } in
       let spec = List.append
           (List.map (fun spec -> spec (fun n ->
@@ -63,6 +65,7 @@ module Make (G : Ai.Game)  (F : Activation.Activation) = struct
         "-stats", Arg.Unit (fun () -> opt.stats <- true), "compute only statistics";
         "-multi-train-nlearn", Arg.Int (fun i -> opt.multi_train_nlearn <- i), "sets the number of learning session in case of a multi learn";
         "-multi-train-ngames", Arg.Int (fun i -> opt.multi_train_ngames <- i), "sets the number of games used to create the database in case of a multi learn";
+        "-training-from", Arg.Int (fun i -> opt.training_from <- i), "restrict the distance between the end of the game and the training positions (default=1 : 1 move away from the end of the game)";
         
       ] in
       Arg.current := 0;
@@ -102,6 +105,7 @@ module Make (G : Ai.Game)  (F : Activation.Activation) = struct
                       GP.multilearn
                         ~nlearn:opt.multi_train_nlearn
                         ~ngames:opt.multi_train_ngames
+                        opt.training_from
                         opt.training_percent_random opt.learn_ratio ai
                     else GP.learn opt.training_percent_random opt.learn_ratio ai
                   done;

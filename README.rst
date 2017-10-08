@@ -39,7 +39,9 @@ training ::
 endgame training ::
     ./tictactoe.native -training-file tictactoe_nn.dat -training-ratio 0.05 -use-CuMat -database-size 128 -training-iterations 1000
 
-
+multi learn ::
+      ./tictactoe.native -training-file tictactoe_nn.dat -training-iterations 10 -training-steps 1 -training-ratio 0.1 -training-random-percent 20 -multi-train-nlearn 1 -multi-train-ngames 20 -training-from 2
+    
 mesure contre l'alphabeta::
   ./tictactoe.native -alphabeta-player1 10 -neural-file-player2 tictactoe_nn.dat -stats
 

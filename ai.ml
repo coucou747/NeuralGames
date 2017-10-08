@@ -89,7 +89,7 @@ module GamePlay (G : Game) (F : Activation.Activation)  (L:LinearOperations) : s
   val create_ai : int list -> airef
   val make_ai_player : airef -> fplayer
   val learn : int -> float -> airef -> unit
-  val multilearn : ?nlearn:int -> ?ngames:int -> int -> float -> airef -> unit
+  val multilearn : ?nlearn:int -> ?ngames:int -> int -> int -> float -> airef -> unit
   val learn_endgames : ?error_channel:Format.formatter -> int -> int -> float -> airef -> unit
 
   val save_ai : Format.formatter -> airef -> unit
@@ -204,40 +204,36 @@ end = struct
         end
     in ignore (f (G.state0 ()) G.p1)
 
-  let multilearn ?(nlearn=100) ?(ngames=10) training_percent_random learning_rate
+  let multilearn ?(nlearn=100) ?(ngames=10) learn_from training_percent_random learning_rate
       refw =
-    let end_p = 2 in
-    let learn_from = end_p + 6 in
-    let addinput p pinputs scores inputs l score =
-      if p > learn_from then pinputs, scores else
-      if List.mem inputs pinputs then pinputs, scores
-      else (inputs :: pinputs), ((l, score)::scores)
-    in
     let adddb input score db =
       if List.exists (fun (a, b) -> a = input) db then db
       else (input, [|score|]) :: db
     in
-    let rec f state player pinputs scores db =
+    let addinput p inputs score db =
+      if p > learn_from then db else adddb inputs score db
+    in
+    let rec f state player db =
       let other_player = G.other_player player in
       if (Random.int 100) < training_percent_random then
         let moves = G.all_moves state player in
-        let ns, p, pinputs, scores, db =
-          List.fold_left (fun (state, p, pinputs, scores, db) move ->
+        let ns, p, db =
+          List.fold_left (fun (state, p, db) move ->
             let ns, undo = G.play state player move in
             let inputs_t0 = inputs other_player state in
             let tdend score_t0 score_t1 =
               let inputs_t1 = inputs player ns in
-              ns, end_p, pinputs, scores, (adddb inputs_t0 score_t0 (adddb inputs_t1 score_t1 db))
+              ns, 0, (adddb inputs_t0 score_t0 (adddb inputs_t1 score_t1 db))
             in
-            let ns, p', pinputs, scores, db =
+            let ns, p', db =
               if G.won ns player then tdend F.min F.max
               else if G.draw ns player then tdend F.neutral F.neutral
-              else f ns other_player pinputs scores db
+              else f ns other_player db
             in
             let ns = G.undo ns player undo in
-            ns, min p p', pinputs, scores, db
-          ) (state, 10000, pinputs, scores, db) moves
-        in ns, p + 1, pinputs, scores, db
+            ns, min p p', db
+          ) (state, 10000, db) moves
+        in ns, p + 1, db
       else
         begin
           let move, score =  move_score_ai_player refw state player in
@@ -246,36 +242,24 @@ end = struct
           let tdend score_t0 score_t1 =
             let ns = G.undo ns player undo in
             let inputs_t1 = inputs player ns in
-            ns, end_p, pinputs, scores, (adddb inputs_t0 score_t0 (adddb inputs_t1 score_t1 db))
+            ns, 0, (adddb inputs_t0 score_t0 (adddb inputs_t1 score_t1 db))
           in
           if G.won ns player then tdend F.min F.max
           else if G.draw ns player then tdend F.neutral F.neutral
           else
-            let ns, p, pinputs, scores, db = f ns other_player pinputs scores db in
+            let ns, p, db = f ns other_player db in
             let ns = G.undo ns player undo in
             let score = F.invert score in
-            let l = 1. /. (float_of_int p) in
-            let pinputs, scores = addinput p pinputs scores inputs_t0 l score in
-            ns, p+1, pinputs, scores, db
+            let db = addinput p inputs_t0 score db in
+            ns, p+1, db
         end
     in
-    let rec mkonedb inputs scores db n = match n with (* let's build a db of "n" games*)
-      | 0 ->
-        begin match inputs with
-          | [] -> db
-          | _ ->
-            let inputs = Array.of_list inputs in
-            let values = N.computes (!refw) inputs in
-            let dbaddon = List.mapi (fun i (l, score) ->
-                let score = values.(0).(i) *. (1. -. l) +. score *. l in
-                inputs.(i), [|score|]
-              ) scores in
-            List.rev_append db dbaddon
-        end
+    let rec mkonedb db n = match n with (* let's build a db of "n" games*)
+      | 0 -> db
       | n ->
-        let _, _, inputs, scores, db = f (G.state0 ()) G.p1 inputs scores db in
-        mkonedb inputs scores db (max 0 (n - 1))
-    in let db = mkonedb [] [] [] ngames in
+        let _, _, db = f (G.state0 ()) G.p1 db in
+        mkonedb db (max 0 (n - 1))
+    in let db = mkonedb [] ngames in
     if db != [] then
       let ndb = List.length db |> float_of_int in
       Format.printf "Multi learn %f@\n" ndb;
